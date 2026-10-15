@@ -58,4 +58,4 @@ trap 'rm -f "$selection"' EXIT
 # Run the Ansible playbook with the selected applications. -K asks for the
 # sudo password once, up front. Several tasks need root: the apt installs on
 # Debian, and /etc/paths.d/homebrew on macOS.
-# "$ansible_playbook" playbook.yml --ask-become-pass --extra-vars "@$selection"
+"$ansible_playbook" ansible/playbook.yml --ask-become-pass --extra-vars "@$selection"

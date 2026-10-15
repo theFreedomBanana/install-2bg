@@ -3,29 +3,29 @@
 import json
 import sys
 
-from categories.api_clients import select_api_clients
-from categories.browsers import select_browsers
-from categories.build_tools import select_build_tools
-from categories.database_managers import select_database_managers
-from categories.databases import select_databases
-from categories.devops import select_devops
-from categories.cli_tools import select_cli_tools
-from categories.editors import select_editors
-from categories.git_tools import select_git_tools
-from categories.languages import select_languages
-from categories.media import select_media
-from categories.network_tools import select_network_tools
-from categories.notes import select_notes
-from categories.server import select_servers
-from categories.shells import (
+from scripts.categories.api_clients import select_api_clients
+from scripts.categories.browsers import select_browsers
+from scripts.categories.build_tools import select_build_tools
+from scripts.categories.database_managers import select_database_managers
+from scripts.categories.databases import select_databases
+from scripts.categories.devops import select_devops
+from scripts.categories.cli_tools import select_cli_tools
+from scripts.categories.editors import select_editors
+from scripts.categories.git_tools import select_git_tools
+from scripts.categories.languages import select_languages
+from scripts.categories.media import select_media
+from scripts.categories.network_tools import select_network_tools
+from scripts.categories.notes import select_notes
+from scripts.categories.server import select_servers
+from scripts.categories.shells import (
     select_login_shell,
     select_shell_plugins,
     select_shells,
 )
-from categories.socials import select_socials
-from categories.terminals import select_terminals
-from categories.vpn import select_vpn
-from categories.tunneling import select_tunneling
+from scripts.categories.socials import select_socials
+from scripts.categories.terminals import select_terminals
+from scripts.categories.vpn import select_vpn
+from scripts.categories.tunneling import select_tunneling
 
 
 def main():
