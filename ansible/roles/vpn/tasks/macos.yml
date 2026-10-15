@@ -1,0 +1,24 @@
+- name: Install the VPN applications
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: nordvpn
+      cask: nordvpn
+    - key: mullvad
+      cask: mullvadvpn
+    - key: protonvpn
+      cask: protonvpn
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in vpn_to_install
+
+- name: Install the WireGuard tools
+  # macOS has no WireGuard cask. This is the command line side, which is
+  # what a configuration file driven setup needs.
+  community.general.homebrew:
+    name: wireguard-tools
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'wireguard' in vpn_to_install"

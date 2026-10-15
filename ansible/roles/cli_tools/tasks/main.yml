@@ -1,0 +1,27 @@
+- name: Work out which command line tools this machine can install
+  ansible.builtin.set_fact:
+    cli_tools_installable: >-
+      {{
+        cli_tools_supported[ansible_distribution]
+        | default(cli_tools_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which command line tools to install
+  ansible.builtin.set_fact:
+    cli_tools_to_install: "{{ selected_cli_tools | intersect(cli_tools_installable) }}"
+
+- name: Report command line tools that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_cli_tools | difference(cli_tools_installable) | join(', ') }}
+  when: selected_cli_tools | difference(cli_tools_installable) | length > 0
+
+- name: Install command line tools on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install command line tools on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

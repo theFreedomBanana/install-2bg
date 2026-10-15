@@ -1,0 +1,27 @@
+- name: Work out which VPN clients this machine can install
+  ansible.builtin.set_fact:
+    vpn_installable: >-
+      {{
+        vpn_supported[ansible_distribution]
+        | default(vpn_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which VPN clients to install
+  ansible.builtin.set_fact:
+    vpn_to_install: "{{ selected_vpn | intersect(vpn_installable) }}"
+
+- name: Report VPN clients that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_vpn | difference(vpn_installable) | join(', ') }}
+  when: selected_vpn | difference(vpn_installable) | length > 0
+
+- name: Install VPN clients on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install VPN clients on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

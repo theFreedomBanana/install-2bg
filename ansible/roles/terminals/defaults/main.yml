@@ -1,0 +1,21 @@
+# Terminals this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family,
+# so a derivative such as Pop!_OS falls back to the Debian list.
+terminals_supported:
+  MacOSX:
+    - alacritty
+    - ghostty
+    - iterm2
+    - kitty
+    - wezterm
+  Ubuntu:
+    - alacritty
+    - ghostty
+    - kitty
+    - terminator
+    - wezterm
+  Debian:
+    - alacritty
+    - kitty
+    - terminator
+    - wezterm

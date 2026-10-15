@@ -1,0 +1,17 @@
+- name: Install the media apps
+  # All three are in the Debian and Ubuntu archives, so no vendor
+  # repositories are needed here.
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item.package }}"
+    state: present
+  loop:
+    - key: vlc
+      package: vlc
+    - key: obs
+      package: obs-studio
+    - key: vokoscreen
+      package: vokoscreen-ng
+  loop_control:
+    label: "{{ item.package }}"
+  when: item.key in media_to_install

@@ -1,0 +1,34 @@
+- name: Work out which editors this machine can install
+  ansible.builtin.set_fact:
+    editors_installable: >-
+      {{
+        editors_supported[ansible_distribution]
+        | default(editors_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Drop editors that publish no package for this architecture
+  ansible.builtin.set_fact:
+    editors_installable: "{{ editors_installable | difference(editors_amd64_only) }}"
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_architecture != 'x86_64'
+
+- name: Work out which editors to install
+  ansible.builtin.set_fact:
+    editors_to_install: "{{ selected_editors | intersect(editors_installable) }}"
+
+- name: Report editors that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_editors | difference(editors_installable) | join(', ') }}
+  when: selected_editors | difference(editors_installable) | length > 0
+
+- name: Install editors on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install editors on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

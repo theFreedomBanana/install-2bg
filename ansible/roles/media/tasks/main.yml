@@ -1,0 +1,27 @@
+- name: Work out which media apps this machine can install
+  ansible.builtin.set_fact:
+    media_installable: >-
+      {{
+        media_supported[ansible_distribution]
+        | default(media_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which media apps to install
+  ansible.builtin.set_fact:
+    media_to_install: "{{ selected_media | intersect(media_installable) }}"
+
+- name: Report media apps that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_media | difference(media_installable) | join(', ') }}
+  when: selected_media | difference(media_installable) | length > 0
+
+- name: Install media apps on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install media apps on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

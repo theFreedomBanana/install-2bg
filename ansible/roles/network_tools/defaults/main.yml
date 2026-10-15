@@ -1,0 +1,14 @@
+# Network tools this role can install, per platform. All three work on both,
+# though "ss" comes from a different package on each.
+network_tools_supported:
+  MacOSX: &all_network_tools
+    - wireshark
+    - nmap
+    - ss
+  Ubuntu: *all_network_tools
+  Debian: *all_network_tools
+
+# Whether members of the wireshark group may capture packets without root.
+# The Debian package asks this during install, so the answer is preseeded.
+# Leaving this false means capturing needs sudo, which is the safer default.
+wireshark_allow_non_root_capture: false

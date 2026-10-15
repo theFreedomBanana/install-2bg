@@ -1,0 +1,42 @@
+- name: Work out which database managers this machine can install
+  ansible.builtin.set_fact:
+    database_managers_installable: >-
+      {{
+        database_managers_supported[ansible_distribution]
+        | default(database_managers_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Drop database managers that publish no package for this architecture
+  ansible.builtin.set_fact:
+    database_managers_installable: >-
+      {{ database_managers_installable | difference(database_managers_amd64_only) }}
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_architecture != 'x86_64'
+
+- name: Work out which database managers to install
+  ansible.builtin.set_fact:
+    database_managers_to_install: >-
+      {{ selected_database_managers | intersect(database_managers_installable) }}
+
+- name: Report database managers that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{
+        selected_database_managers
+        | difference(database_managers_installable)
+        | join(', ')
+      }}
+  when: >-
+    selected_database_managers
+    | difference(database_managers_installable) | length > 0
+
+- name: Install database managers on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install database managers on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

@@ -1,0 +1,36 @@
+- name: Work out which API clients this machine can install
+  ansible.builtin.set_fact:
+    api_clients_installable: >-
+      {{
+        api_clients_supported[ansible_distribution]
+        | default(api_clients_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Drop API clients that publish no package for this architecture
+  ansible.builtin.set_fact:
+    api_clients_installable: >-
+      {{ api_clients_installable | difference(api_clients_amd64_only) }}
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_architecture != 'x86_64'
+
+- name: Work out which API clients to install
+  ansible.builtin.set_fact:
+    api_clients_to_install: >-
+      {{ selected_api_clients | intersect(api_clients_installable) }}
+
+- name: Report API clients that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_api_clients | difference(api_clients_installable) | join(', ') }}
+  when: selected_api_clients | difference(api_clients_installable) | length > 0
+
+- name: Install API clients on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install API clients on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

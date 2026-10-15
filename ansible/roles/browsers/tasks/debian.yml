@@ -1,0 +1,235 @@
+- name: Install prerequisites for browser repositories
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+    state: present
+  when: >-
+    browsers_to_install | intersect(['chrome', 'edge', 'brave', 'opera'])
+    | length > 0
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: >-
+    browsers_to_install | intersect(['chrome', 'edge', 'brave', 'opera'])
+    | length > 0
+
+- name: Install Firefox on Debian
+  become: true
+  ansible.builtin.apt:
+    name: firefox-esr
+    state: present
+  when:
+    - ansible_distribution == 'Debian'
+    - "'firefox' in browsers_to_install"
+
+- name: Install Firefox on Ubuntu using Snap
+  community.general.snap:
+    name: firefox
+    state: present
+  become: true
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - "'firefox' in browsers_to_install"
+
+- name: Install Chromium on Debian
+  become: true
+  ansible.builtin.apt:
+    name: chromium
+    state: present
+  when:
+    - ansible_distribution == 'Debian'
+    - "'chromium' in browsers_to_install"
+
+- name: Install Chromium on Ubuntu using Snap
+  # Ubuntu's chromium-browser apt package is only a shim for the snap.
+  community.general.snap:
+    name: chromium
+    state: present
+  become: true
+  when:
+    - ansible_distribution == 'Ubuntu'
+    - "'chromium' in browsers_to_install"
+
+- name: Install Google Chrome
+  when: "'chrome' in browsers_to_install"
+  block:
+    - name: Download Google Chrome repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        dest: /etc/apt/keyrings/google-chrome.asc
+        mode: '0644'
+
+    - name: Configure Google Chrome repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: google-chrome
+        types: [deb]
+        uris: https://dl.google.com/linux/chrome/deb/
+        suites: [stable]
+        components: [main]
+        architectures: [amd64]
+        signed_by: /etc/apt/keyrings/google-chrome.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Google Chrome repository
+      # deb822_repository never updates the cache itself.
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run Google Chrome installer
+      become: true
+      ansible.builtin.apt:
+        name: google-chrome-stable
+        state: present
+
+- name: Install Microsoft Edge
+  when: "'edge' in browsers_to_install"
+  block:
+    - name: Download the Microsoft repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        dest: /etc/apt/keyrings/microsoft.asc
+        mode: '0644'
+
+    - name: Configure the Microsoft Edge repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: microsoft-edge
+        types: [deb]
+        uris: https://packages.microsoft.com/repos/edge
+        suites: [stable]
+        components: [main]
+        architectures: [amd64]
+        signed_by: /etc/apt/keyrings/microsoft.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Microsoft Edge repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Microsoft Edge installer
+      become: true
+      ansible.builtin.apt:
+        name: microsoft-edge-stable
+        state: present
+
+- name: Install Brave
+  when: "'brave' in browsers_to_install"
+  block:
+    - name: Download Brave repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+        dest: /etc/apt/keyrings/brave-browser-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Configure Brave repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: brave-browser-release
+        types: [deb]
+        uris: https://brave-browser-apt-release.s3.brave.com/
+        suites: [stable]
+        components: [main]
+        signed_by: /etc/apt/keyrings/brave-browser-archive-keyring.gpg
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Brave repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run Brave installer
+      become: true
+      ansible.builtin.apt:
+        name: brave-browser
+        state: present
+
+- name: Install Opera
+  when: "'opera' in browsers_to_install"
+  block:
+    - name: Download the Opera repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://deb.opera.com/archive.key
+        dest: /etc/apt/keyrings/opera.asc
+        mode: '0644'
+
+    - name: Configure the Opera repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: opera-stable
+        types: [deb]
+        uris: https://deb.opera.com/opera-stable/
+        suites: [stable]
+        components: [non-free]
+        signed_by: /etc/apt/keyrings/opera.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Opera repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Opera installer
+      become: true
+      ansible.builtin.apt:
+        name: opera-stable
+        state: present
+
+- name: Install Zen Browser
+  # Zen publishes no apt package, only an AppImage and a tarball.
+  when: "'zen' in browsers_to_install"
+  block:
+    - name: Install the AppImage runtime dependency
+      become: true
+      ansible.builtin.apt:
+        name: "{{ appimage_fuse_package }}"
+        state: present
+
+    - name: Create the local application directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_user_dir }}/.local/bin"
+        - "{{ ansible_user_dir }}/.local/share/applications"
+
+    - name: Download the Zen Browser AppImage
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/zen-browser/desktop/releases/latest/download/zen-{{
+          'aarch64' if ansible_architecture == 'aarch64' else 'x86_64'
+          }}.AppImage
+        dest: "{{ ansible_user_dir }}/.local/bin/zen.AppImage"
+        mode: '0755'
+
+    - name: Add a desktop entry for Zen Browser
+      ansible.builtin.copy:
+        dest: "{{ ansible_user_dir }}/.local/share/applications/zen.desktop"
+        mode: '0644'
+        content: |
+          [Desktop Entry]
+          Name=Zen Browser
+          Comment=Gecko based web browser
+          Exec={{ ansible_user_dir }}/.local/bin/zen.AppImage %U
+          Icon=zen
+          Type=Application
+          Categories=Network;WebBrowser;
+          MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;
+          StartupWMClass=zen

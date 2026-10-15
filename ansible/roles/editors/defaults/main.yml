@@ -1,0 +1,38 @@
+# Editors this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# Windsurf now redirects to devin.ai with no stable Linux download URL, so it
+# is macOS only here.
+editors_supported:
+  MacOSX:
+    - vscode
+    - cursor
+    - codex
+    - windsurf
+    - emacs
+    - neovim
+    - pycharm
+    - sublimetext
+    - zed
+  Ubuntu:
+    - vscode
+    - cursor
+    - codex
+    - emacs
+    - neovim
+    - pycharm
+    - sublimetext
+    - zed
+  # Plain Debian ships no snapd, and PyCharm's only Linux package here is
+  # the snap, so it is left out.
+  Debian:
+    - vscode
+    - cursor
+    - codex
+    - emacs
+    - neovim
+    - sublimetext
+    - zed
+
+# These publish no arm64 Linux package.
+editors_amd64_only:
+  - vscode

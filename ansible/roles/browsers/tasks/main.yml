@@ -1,0 +1,35 @@
+- name: Work out which browsers this machine can install
+  ansible.builtin.set_fact:
+    browsers_installable: >-
+      {{
+        browsers_supported[ansible_distribution]
+        | default(browsers_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Drop browsers that publish no package for this architecture
+  ansible.builtin.set_fact:
+    browsers_installable: >-
+      {{ browsers_installable | difference(browsers_amd64_only) }}
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_architecture != 'x86_64'
+
+- name: Work out which browsers to install
+  ansible.builtin.set_fact:
+    browsers_to_install: "{{ selected_browsers | intersect(browsers_installable) }}"
+
+- name: Report browsers that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_browsers | difference(browsers_installable) | join(', ') }}
+  when: selected_browsers | difference(browsers_installable) | length > 0
+
+- name: Install browsers on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install browsers on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

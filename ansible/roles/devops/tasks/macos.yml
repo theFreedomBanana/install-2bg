@@ -1,0 +1,82 @@
+- name: Install the DevOps tools that Homebrew core carries
+  community.general.homebrew:
+    name: "{{ item.formula }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    # Colima supplies the Linux virtual machine that the Docker engine needs.
+    - key: docker
+      formula: docker
+    - key: docker
+      formula: colima
+    - key: docker-compose
+      formula: docker-compose
+    - key: kubectl
+      formula: kubernetes-cli
+    - key: helm
+      formula: helm
+    - key: minikube
+      formula: minikube
+    - key: kind
+      formula: kind
+    - key: podman
+      formula: podman
+    - key: k9s
+      formula: k9s
+    - key: pulumi
+      formula: pulumi
+    - key: terragrunt
+      formula: terragrunt
+    - key: prometheus
+      formula: prometheus
+    - key: grafana
+      formula: grafana
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in devops_to_install
+
+- name: Install Terraform
+  # Terraform left Homebrew core when HashiCorp moved to the BSL licence.
+  when: "'terraform' in devops_to_install"
+  block:
+    - name: Add the HashiCorp Homebrew tap
+      community.general.homebrew_tap:
+        name: hashicorp/tap
+        state: present
+        path: "{{ homebrew_prefix }}/bin"
+
+    - name: Install the Terraform formula
+      community.general.homebrew:
+        name: hashicorp/tap/terraform
+        state: present
+        path: "{{ homebrew_prefix }}/bin"
+
+- name: Install Lens
+  community.general.homebrew_cask:
+    name: lens
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'lens' in devops_to_install"
+
+- name: Install Chef Workstation
+  community.general.homebrew_cask:
+    name: chef-workstation
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'chef' in devops_to_install"
+
+# SQLite aside, the pattern matches the databases role: only long running
+# services are registered, and the command is safe to repeat.
+- name: Start the monitoring services and register them to run at login
+  ansible.builtin.command:
+    cmd: "{{ homebrew_prefix }}/bin/brew services start {{ item.formula }}"
+  register: brew_service_start
+  changed_when: "'Successfully started' in brew_service_start.stdout"
+  loop:
+    - key: prometheus
+      formula: prometheus
+    - key: grafana
+      formula: grafana
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in devops_to_install

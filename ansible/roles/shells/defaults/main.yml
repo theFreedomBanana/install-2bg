@@ -1,0 +1,31 @@
+# Fisher must run inside fish itself, so the plugin tasks need the fish path.
+fish_path: >-
+  {{
+    homebrew_prefix ~ '/bin/fish'
+    if ansible_os_family == 'Darwin'
+    else '/usr/bin/fish'
+  }}
+
+# Shells this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# Nushell is absent from the Debian archives, so Linux uses the official
+# tarball from the project's own releases.
+shells_supported:
+  MacOSX:
+    - zsh
+    - fish
+    - nushell
+    - xonsh
+    - elvish
+  Ubuntu:
+    - zsh
+    - fish
+    - nushell
+    - xonsh
+    - elvish
+  Debian:
+    - zsh
+    - fish
+    - nushell
+    - xonsh
+    - elvish

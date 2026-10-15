@@ -1,0 +1,31 @@
+- name: Work out which shells this machine can install
+  ansible.builtin.set_fact:
+    shells_installable: >-
+      {{
+        shells_supported[ansible_distribution]
+        | default(shells_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which shells to install
+  ansible.builtin.set_fact:
+    shells_to_install: "{{ selected_shells | intersect(shells_installable) }}"
+
+- name: Report shells that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_shells | difference(shells_installable) | join(', ') }}
+  when: selected_shells | difference(shells_installable) | length > 0
+
+- name: Install shells on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install shells on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Install shell plugin managers
+  ansible.builtin.import_tasks: plugins.yml
+  when: selected_shell_plugins | length > 0

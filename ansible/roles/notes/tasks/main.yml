@@ -1,0 +1,27 @@
+- name: Work out which note taking apps this machine can install
+  ansible.builtin.set_fact:
+    notes_installable: >-
+      {{
+        notes_supported[ansible_distribution]
+        | default(notes_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which note taking apps to install
+  ansible.builtin.set_fact:
+    notes_to_install: "{{ selected_notes | intersect(notes_installable) }}"
+
+- name: Report note taking apps that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_notes | difference(notes_installable) | join(', ') }}
+  when: selected_notes | difference(notes_installable) | length > 0
+
+- name: Install note taking apps on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install note taking apps on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

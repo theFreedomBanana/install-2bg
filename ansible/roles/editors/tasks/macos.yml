@@ -1,0 +1,32 @@
+- name: Install the graphical editors
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: vscode
+      cask: visual-studio-code
+    - key: cursor
+      cask: cursor
+    - key: codex
+      cask: codex
+    - key: windsurf
+      cask: windsurf
+    - key: emacs
+      cask: emacs
+    - key: pycharm
+      cask: pycharm-ce
+    - key: sublimetext
+      cask: sublime-text
+    - key: zed
+      cask: zed
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in editors_to_install
+
+- name: Install Neovim
+  community.general.homebrew:
+    name: neovim
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'neovim' in editors_to_install"

@@ -1,0 +1,26 @@
+# API clients this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# Postman publishes no apt package, so Linux uses the snap. Plain Debian has
+# no snapd by default, which is why Postman is listed for Ubuntu only.
+api_clients_supported:
+  MacOSX:
+    - postman
+    - insomnia
+    - bruno
+    - httpie
+    - hurl
+  Ubuntu:
+    - postman
+    - insomnia
+    - bruno
+    - httpie
+    - hurl
+  Debian:
+    - insomnia
+    - bruno
+    - httpie
+    - hurl
+
+# Insomnia publishes no arm64 Linux package.
+api_clients_amd64_only:
+  - insomnia

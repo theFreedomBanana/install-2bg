@@ -1,0 +1,25 @@
+- name: Check that the Xcode command line tools are present
+  # They supply clang, clang++, make and lldb. Homebrew's installer pulls
+  # them in, so by this point they should already be here.
+  ansible.builtin.command: xcode-select --print-path
+  register: xcode_tools
+  changed_when: false
+  failed_when: false
+  when: "'cxx' in build_tools_to_install"
+
+- name: Require the Xcode command line tools for C and C++
+  ansible.builtin.assert:
+    that:
+      - xcode_tools.rc == 0
+    fail_msg: >-
+      The Xcode command line tools are missing, so there is no C or C++
+      compiler. Install them with "xcode-select --install" and run again.
+  when: "'cxx' in build_tools_to_install"
+
+- name: Install the build tool formulae
+  community.general.homebrew:
+    name: "{{ build_tools_packages[item]['MacOSX'] }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop: "{{ build_tools_to_install }}"
+  when: build_tools_packages[item]['MacOSX'] | length > 0

@@ -1,0 +1,28 @@
+- name: Work out which build tools this machine can install
+  ansible.builtin.set_fact:
+    build_tools_installable: >-
+      {{
+        build_tools_supported[ansible_distribution]
+        | default(build_tools_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which build tools to install
+  ansible.builtin.set_fact:
+    build_tools_to_install: >-
+      {{ selected_build_tools | intersect(build_tools_installable) }}
+
+- name: Report build tools that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_build_tools | difference(build_tools_installable) | join(', ') }}
+  when: selected_build_tools | difference(build_tools_installable) | length > 0
+
+- name: Install build tools on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install build tools on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

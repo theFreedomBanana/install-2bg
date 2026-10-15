@@ -1,0 +1,20 @@
+- name: Install the graphical API clients
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - postman
+    - insomnia
+    - bruno
+  when: item in api_clients_to_install
+
+- name: Install the command line API clients
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - httpie
+    - hurl
+  when: item in api_clients_to_install

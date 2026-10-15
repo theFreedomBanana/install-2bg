@@ -1,0 +1,63 @@
+- name: Install WireGuard
+  # WireGuard is in the Debian and Ubuntu archives.
+  become: true
+  ansible.builtin.apt:
+    name: wireguard
+    state: present
+  when: "'wireguard' in vpn_to_install"
+
+- name: Install the VPN clients that need a vendor repository
+  when: vpn_to_install | intersect(vpn_repositories.keys() | list) | length > 0
+  block:
+    - name: Install prerequisites for the VPN repositories
+      become: true
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - gpg
+        state: present
+
+    - name: Create APT keyrings directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download the VPN repository signing keys
+      become: true
+      ansible.builtin.get_url:
+        url: "{{ vpn_repositories[item].key_url }}"
+        dest: "/etc/apt/keyrings/{{ item }}.asc"
+        mode: '0644'
+      loop: "{{ vpn_repositories.keys() | list }}"
+      when: item in vpn_to_install
+
+    - name: Configure the VPN repositories
+      become: true
+      ansible.builtin.deb822_repository:
+        name: "{{ item }}"
+        types: [deb]
+        uris: "{{ vpn_repositories[item].uris }}"
+        suites: ["{{ vpn_repositories[item].suite }}"]
+        components: [main]
+        architectures: [amd64, arm64]
+        signed_by: "/etc/apt/keyrings/{{ item }}.asc"
+        state: present
+        enabled: true
+      loop: "{{ vpn_repositories.keys() | list }}"
+      when: item in vpn_to_install
+
+    - name: Refresh the apt cache for the VPN repositories
+      # deb822_repository never updates the cache itself.
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the VPN installers
+      become: true
+      ansible.builtin.apt:
+        name: "{{ vpn_repositories[item].package }}"
+        state: present
+      loop: "{{ vpn_repositories.keys() | list }}"
+      when: item in vpn_to_install

@@ -1,0 +1,15 @@
+- name: Install Nginx
+  when: "'nginx' in servers_to_install"
+  block:
+    - name: Install the Nginx package
+      become: true
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Start Nginx and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true

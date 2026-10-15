@@ -1,0 +1,46 @@
+- name: Install prerequisites for the mise repository
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+    state: present
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download the mise repository signing key
+  become: true
+  ansible.builtin.get_url:
+    url: https://mise.jdx.dev/gpg-key.pub
+    dest: /etc/apt/keyrings/mise.asc
+    mode: '0644'
+
+- name: Configure the mise repository
+  become: true
+  ansible.builtin.deb822_repository:
+    name: mise
+    types: [deb]
+    uris: https://mise.jdx.dev/deb
+    suites: [stable]
+    components: [main]
+    architectures: [amd64, arm64]
+    signed_by: /etc/apt/keyrings/mise.asc
+    state: present
+    enabled: true
+
+- name: Refresh the apt cache for the mise repository
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Run the mise installer
+  become: true
+  ansible.builtin.apt:
+    name: mise
+    state: present
+

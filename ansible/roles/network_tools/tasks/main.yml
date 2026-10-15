@@ -1,0 +1,33 @@
+- name: Work out which network tools this machine can install
+  ansible.builtin.set_fact:
+    network_tools_installable: >-
+      {{
+        network_tools_supported[ansible_distribution]
+        | default(network_tools_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which network tools to install
+  ansible.builtin.set_fact:
+    network_tools_to_install: >-
+      {{ selected_network_tools | intersect(network_tools_installable) }}
+
+- name: Report network tools that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{
+        selected_network_tools
+        | difference(network_tools_installable) | join(', ')
+      }}
+  when: >-
+    selected_network_tools
+    | difference(network_tools_installable) | length > 0
+
+- name: Install network tools on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install network tools on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

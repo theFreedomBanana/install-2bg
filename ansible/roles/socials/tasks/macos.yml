@@ -1,0 +1,15 @@
+- name: Install social apps
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: zoom
+      cask: zoom
+    - key: discord
+      cask: discord
+    - key: slack
+      cask: slack
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in socials_to_install

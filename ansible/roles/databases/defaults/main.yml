@@ -1,0 +1,47 @@
+# MongoDB is absent from Homebrew core and from the Debian archives, so both
+# platforms install it from MongoDB's own tap or apt repository.
+mongodb_version: '8.0'
+
+# CouchDB's Debian package asks for an admin password while it installs.
+# Empty leaves CouchDB with no admin account. Pass one instead with
+#   ansible-playbook playbook.yml -e couchdb_admin_password=secret
+couchdb_admin_password: ''
+
+# MongoDB publishes apt packages only for these releases.
+mongodb_supported_releases:
+  Ubuntu:
+    - '20.04'
+    - '22.04'
+    - '24.04'
+  Debian:
+    - '11'
+    - '12'
+
+# Databases this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# Debian ships MariaDB in place of MySQL, and MySQL's own repository needs an
+# interactive config package, so MySQL is Ubuntu and macOS only.
+databases_supported:
+  MacOSX:
+    - postgresql
+    - mariadb
+    - mysql
+    - mongodb
+    - couchdb
+    - redis
+    - sqlite
+  Ubuntu:
+    - postgresql
+    - mariadb
+    - mysql
+    - mongodb
+    - couchdb
+    - redis
+    - sqlite
+  Debian:
+    - postgresql
+    - mariadb
+    - mongodb
+    - couchdb
+    - redis
+    - sqlite

@@ -1,0 +1,7 @@
+# Servers this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+servers_supported:
+  MacOSX: &all_servers
+    - nginx
+  Ubuntu: *all_servers
+  Debian: *all_servers

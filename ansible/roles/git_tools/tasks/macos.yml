@@ -1,0 +1,13 @@
+- name: Install the Git tools
+  # Homebrew core carries all five, so macOS needs nothing special.
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - git
+    - gh
+    - lazygit
+    - git-delta
+    - git-lfs
+  when: item in git_tools_to_install

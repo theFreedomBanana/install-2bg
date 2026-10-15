@@ -1,0 +1,614 @@
+- name: Configure workstation
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    # Apple Silicon installs Homebrew in /opt/homebrew, Intel in /usr/local.
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_architecture == 'arm64' else '/usr/local' }}"
+    # Homebrew no longer ships an unversioned postgresql formula. The
+    # databases role installs it, and shell_config puts its bin on the PATH.
+    postgresql_version: 18
+    # Ubuntu 24.04 and Debian 13 renamed libfuse2 to libfuse2t64. AppImages
+    # such as Zen and Cursor need whichever one the distribution ships.
+    appimage_fuse_package: >-
+      {{
+        'libfuse2t64'
+        if (ansible_distribution == 'Ubuntu'
+            and ansible_distribution_major_version is version('24', '>='))
+           or (ansible_distribution == 'Debian'
+               and ansible_distribution_major_version is version('13', '>='))
+        else 'libfuse2'
+      }}
+    available_browsers:
+      - firefox
+      - chrome
+      - edge
+      - chromium
+      - brave
+      - opera
+      - zen
+      - comet
+    available_editors:
+      - vscode
+      - cursor
+      - codex
+      - windsurf
+      - emacs
+      - neovim
+      - pycharm
+      - sublimetext
+      - zed
+    available_terminals:
+      - alacritty
+      - ghostty
+      - iterm2
+      - kitty
+      - terminator
+      - wezterm
+    available_databases:
+      - couchdb
+      - mariadb
+      - mongodb
+      - mysql
+      - postgresql
+      - sqlite
+      - redis
+    available_database_managers:
+      - dbeaver
+      - beekeeper
+      - pgadmin
+      - dbvis
+      - compass
+      - redisinsight
+    available_devops:
+      - docker
+      - docker-compose
+      - podman
+      - kubectl
+      - helm
+      - minikube
+      - kind
+      - k9s
+      - lens
+      - terraform
+      - pulumi
+      - terragrunt
+      - chef
+      - prometheus
+      - grafana
+    available_tunneling:
+      - ngrok
+      - localtunnel
+      - zrok
+    available_socials:
+      - zoom
+      - discord
+      - slack
+    available_languages:
+      - node
+      - bun
+      - deno
+      - python
+      - go
+      - rust
+      - java
+      - kotlin
+      - scala
+      - clojure
+      - groovy
+      - ruby
+      - erlang
+      - elixir
+      - dotnet
+      - swift
+      - zig
+      - crystal
+      - dart
+      - julia
+      - lua
+      - perl
+    available_build_tools:
+      - cxx
+      - fortran
+      - cmake
+      - ninja
+      - ccache
+      - autotools
+      - pkgconf
+      - gdb
+    available_api_clients:
+      - postman
+      - insomnia
+      - bruno
+      - httpie
+      - hurl
+    available_vpn:
+      - nordvpn
+      - mullvad
+      - protonvpn
+      - wireguard
+    available_notes:
+      - notion
+      - obsidian
+    available_media:
+      - vlc
+      - obs
+      - vokoscreen
+    available_git_tools:
+      - git
+      - gh
+      - lazygit
+      - git-delta
+      - git-lfs
+    available_servers:
+      - nginx
+    available_cli_tools:
+      - eza
+      - curl
+      - wget
+      - htop
+      - fzf
+      - fzy
+      - tmux
+    available_network_tools:
+      - wireshark
+      - nmap
+      - ss
+    available_shells:
+      - zsh
+      - fish
+      - nushell
+      - xonsh
+      - elvish
+    available_shell_plugins:
+      - oh-my-zsh
+      - fisher
+
+  tasks:
+    - name: Check supported operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family in ['Debian', 'Darwin']
+        fail_msg: >-
+          Unsupported operating system.
+          This playbook supports Ubuntu, Debian, and macOS.
+
+    - name: Install the package manager for this operating system
+      ansible.builtin.import_role:
+        name: package_managers
+
+    - name: Validate browser selections
+      ansible.builtin.assert:
+        that:
+          - selected_browsers is defined
+          - selected_browsers is sequence
+          - selected_browsers is not string
+          - selected_browsers | difference(available_browsers) | length == 0
+        fail_msg: >-
+          Unknown browser requested.
+          Available browsers: {{ available_browsers | join(', ') }}.
+
+    - name: Validate editor selections
+      ansible.builtin.assert:
+        that:
+          - selected_editors is defined
+          - selected_editors is sequence
+          - selected_editors is not string
+          - selected_editors | difference(available_editors) | length == 0
+        fail_msg: >-
+          Unknown editor requested.
+          Available editors: {{ available_editors | join(', ') }}.
+
+    - name: Validate terminal selections
+      ansible.builtin.assert:
+        that:
+          - selected_terminals is defined
+          - selected_terminals is sequence
+          - selected_terminals is not string
+          - selected_terminals | difference(available_terminals) | length == 0
+        fail_msg: >-
+          Unknown terminal requested.
+          Available terminals: {{ available_terminals | join(', ') }}.
+
+    - name: Validate database selections
+      ansible.builtin.assert:
+        that:
+          - selected_databases is defined
+          - selected_databases is sequence
+          - selected_databases is not string
+          - selected_databases | difference(available_databases) | length == 0
+        fail_msg: >-
+          Unknown database requested.
+          Available databases: {{ available_databases | join(', ') }}.
+
+    - name: Reject MySQL and MariaDB together
+      # They are drop-in replacements for each other. Both provide mysqld and
+      # port 3306, so apt and Homebrew each refuse to install the second one.
+      ansible.builtin.assert:
+        that:
+          - "'mysql' not in selected_databases or 'mariadb' not in selected_databases"
+        fail_msg: >-
+          MySQL and MariaDB cannot be installed side by side.
+          Choose one of the two.
+
+    - name: Validate database manager selections
+      ansible.builtin.assert:
+        that:
+          - selected_database_managers is defined
+          - selected_database_managers is sequence
+          - selected_database_managers is not string
+          - >-
+            selected_database_managers
+            | difference(available_database_managers) | length == 0
+        fail_msg: >-
+          Unknown database manager requested.
+          Available: {{ available_database_managers | join(', ') }}.
+
+    - name: Validate DevOps tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_devops is defined
+          - selected_devops is sequence
+          - selected_devops is not string
+          - selected_devops | difference(available_devops) | length == 0
+        fail_msg: >-
+          Unknown DevOps tool requested.
+          Available: {{ available_devops | join(', ') }}.
+
+    - name: Validate tunneling tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_tunneling is defined
+          - selected_tunneling is sequence
+          - selected_tunneling is not string
+          - selected_tunneling | difference(available_tunneling) | length == 0
+        fail_msg: >-
+          Unknown tunneling tool requested.
+          Available: {{ available_tunneling | join(', ') }}.
+
+    - name: Validate social app selections
+      ansible.builtin.assert:
+        that:
+          - selected_socials is defined
+          - selected_socials is sequence
+          - selected_socials is not string
+          - selected_socials | difference(available_socials) | length == 0
+        fail_msg: >-
+          Unknown social app requested.
+          Available: {{ available_socials | join(', ') }}.
+
+    - name: Validate the login shell selection
+      ansible.builtin.assert:
+        that:
+          - selected_login_shell is defined
+          - selected_login_shell is string
+          - >-
+            selected_login_shell | length == 0 or
+            selected_login_shell in selected_shells
+        fail_msg: >-
+          The login shell must be one of the shells being installed,
+          or empty to leave it unchanged.
+
+    - name: Validate language runtime selections
+      ansible.builtin.assert:
+        that:
+          - selected_languages is defined
+          - selected_languages is sequence
+          - selected_languages is not string
+          - selected_languages | difference(available_languages) | length == 0
+        fail_msg: >-
+          Unknown language runtime requested.
+          Available: {{ available_languages | join(', ') }}.
+
+    - name: Validate network tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_network_tools is defined
+          - selected_network_tools is sequence
+          - selected_network_tools is not string
+          - >-
+            selected_network_tools | difference(available_network_tools)
+            | length == 0
+        fail_msg: >-
+          Unknown network tool requested.
+          Available: {{ available_network_tools | join(', ') }}.
+
+    - name: Validate command line tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_cli_tools is defined
+          - selected_cli_tools is sequence
+          - selected_cli_tools is not string
+          - selected_cli_tools | difference(available_cli_tools) | length == 0
+        fail_msg: >-
+          Unknown command line tool requested.
+          Available: {{ available_cli_tools | join(', ') }}.
+
+    - name: Validate server selections
+      ansible.builtin.assert:
+        that:
+          - selected_servers is defined
+          - selected_servers is sequence
+          - selected_servers is not string
+          - selected_servers | difference(available_servers) | length == 0
+        fail_msg: >-
+          Unknown server requested.
+          Available: {{ available_servers | join(', ') }}.
+
+    - name: Validate Git tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_git_tools is defined
+          - selected_git_tools is sequence
+          - selected_git_tools is not string
+          - selected_git_tools | difference(available_git_tools) | length == 0
+        fail_msg: >-
+          Unknown Git tool requested.
+          Available: {{ available_git_tools | join(', ') }}.
+
+    - name: Validate media app selections
+      ansible.builtin.assert:
+        that:
+          - selected_media is defined
+          - selected_media is sequence
+          - selected_media is not string
+          - selected_media | difference(available_media) | length == 0
+        fail_msg: >-
+          Unknown media app requested.
+          Available: {{ available_media | join(', ') }}.
+
+    - name: Validate note taking app selections
+      ansible.builtin.assert:
+        that:
+          - selected_notes is defined
+          - selected_notes is sequence
+          - selected_notes is not string
+          - selected_notes | difference(available_notes) | length == 0
+        fail_msg: >-
+          Unknown note taking app requested.
+          Available: {{ available_notes | join(', ') }}.
+
+    - name: Validate VPN client selections
+      ansible.builtin.assert:
+        that:
+          - selected_vpn is defined
+          - selected_vpn is sequence
+          - selected_vpn is not string
+          - selected_vpn | difference(available_vpn) | length == 0
+        fail_msg: >-
+          Unknown VPN client requested.
+          Available: {{ available_vpn | join(', ') }}.
+
+    - name: Validate API client selections
+      ansible.builtin.assert:
+        that:
+          - selected_api_clients is defined
+          - selected_api_clients is sequence
+          - selected_api_clients is not string
+          - >-
+            selected_api_clients | difference(available_api_clients)
+            | length == 0
+        fail_msg: >-
+          Unknown API client requested.
+          Available: {{ available_api_clients | join(', ') }}.
+
+    - name: Validate build tool selections
+      ansible.builtin.assert:
+        that:
+          - selected_build_tools is defined
+          - selected_build_tools is sequence
+          - selected_build_tools is not string
+          - >-
+            selected_build_tools | difference(available_build_tools)
+            | length == 0
+        fail_msg: >-
+          Unknown build tool requested.
+          Available: {{ available_build_tools | join(', ') }}.
+
+    - name: Require Java for the runtimes that need a virtual machine
+      ansible.builtin.assert:
+        that:
+          - >-
+            selected_languages
+            | intersect(['kotlin', 'scala', 'clojure', 'groovy'])
+            | length == 0 or 'java' in selected_languages
+        fail_msg: >-
+          Kotlin, Scala, Clojure and Groovy all run on the Java
+          virtual machine. Select Java as well, or drop them.
+
+    - name: Require Erlang when Elixir is selected
+      # Elixir runs on the Erlang virtual machine, so mise needs an OTP
+      # release present before it can install or run Elixir.
+      ansible.builtin.assert:
+        that:
+          - "'elixir' not in selected_languages or 'erlang' in selected_languages"
+        fail_msg: >-
+          Elixir needs Erlang/OTP. Select Erlang as well, or drop Elixir.
+
+    - name: Validate shell selections
+      ansible.builtin.assert:
+        that:
+          - selected_shells is defined
+          - selected_shells is sequence
+          - selected_shells is not string
+          - selected_shells | difference(available_shells) | length == 0
+        fail_msg: >-
+          Unknown shell requested.
+          Available shells: {{ available_shells | join(', ') }}.
+
+    - name: Validate shell plugin selections
+      ansible.builtin.assert:
+        that:
+          - selected_shell_plugins is defined
+          - selected_shell_plugins is sequence
+          - selected_shell_plugins is not string
+          - selected_shell_plugins | difference(available_shell_plugins) | length == 0
+        fail_msg: >-
+          Unknown shell plugin manager requested.
+          Available: {{ available_shell_plugins | join(', ') }}.
+
+    - name: Require the shell that each plugin manager needs
+      ansible.builtin.assert:
+        that:
+          - "'oh-my-zsh' not in selected_shell_plugins or 'zsh' in selected_shells"
+          - "'fisher' not in selected_shell_plugins or 'fish' in selected_shells"
+        fail_msg: >-
+          A plugin manager was requested without its shell.
+          Oh My Zsh needs zsh, and Fisher needs fish.
+
+    - name: Summarise the selection
+      ansible.builtin.debug:
+        msg:
+          - "Browsers to install:  {{ selected_browsers | join(', ') if selected_browsers | length > 0 else 'none' }}"
+          - "Editors to install:   {{ selected_editors | join(', ') if selected_editors | length > 0 else 'none' }}"
+          - "Terminals to install: {{ selected_terminals | join(', ') if selected_terminals | length > 0 else 'none' }}"
+          - "Databases to install: {{ selected_databases | join(', ') if selected_databases | length > 0 else 'none' }}"
+          - "DB managers:          {{ selected_database_managers | join(', ') if selected_database_managers | length > 0 else 'none' }}"
+          - "DevOps tools:         {{ selected_devops | join(', ') if selected_devops | length > 0 else 'none' }}"
+          - "Tunneling tools:      {{ selected_tunneling | join(', ') if selected_tunneling | length > 0 else 'none' }}"
+          - "Social apps:          {{ selected_socials | join(', ') if selected_socials | length > 0 else 'none' }}"
+          - "Language runtimes:    {{ selected_languages | join(', ') if selected_languages | length > 0 else 'none' }}"
+          - "Build tools:          {{ selected_build_tools | join(', ') if selected_build_tools | length > 0 else 'none' }}"
+          - "API clients:          {{ selected_api_clients | join(', ') if selected_api_clients | length > 0 else 'none' }}"
+          - "VPN clients:          {{ selected_vpn | join(', ') if selected_vpn | length > 0 else 'none' }}"
+          - "Note taking apps:     {{ selected_notes | join(', ') if selected_notes | length > 0 else 'none' }}"
+          - "Media apps:           {{ selected_media | join(', ') if selected_media | length > 0 else 'none' }}"
+          - "Git tools:            {{ selected_git_tools | join(', ') if selected_git_tools | length > 0 else 'none' }}"
+          - "Servers:              {{ selected_servers | join(', ') if selected_servers | length > 0 else 'none' }}"
+          - "Command line tools:   {{ selected_cli_tools | join(', ') if selected_cli_tools | length > 0 else 'none' }}"
+          - "Network tools:        {{ selected_network_tools | join(', ') if selected_network_tools | length > 0 else 'none' }}"
+          - "Shells to install:    {{ selected_shells | join(', ') if selected_shells | length > 0 else 'none' }}"
+          - "Login shell:          {{ selected_login_shell if selected_login_shell | length > 0 else 'unchanged' }}"
+          - "Shell plugins:        {{ selected_shell_plugins | join(', ') if selected_shell_plugins | length > 0 else 'none' }}"
+
+    - name: Stop when nothing was selected
+      ansible.builtin.meta: end_play
+      when:
+        - selected_browsers | length == 0
+        - selected_editors | length == 0
+        - selected_terminals | length == 0
+        - selected_databases | length == 0
+        - selected_database_managers | length == 0
+        - selected_devops | length == 0
+        - selected_tunneling | length == 0
+        - selected_socials | length == 0
+        - selected_languages | length == 0
+        - selected_build_tools | length == 0
+        - selected_api_clients | length == 0
+        - selected_vpn | length == 0
+        - selected_notes | length == 0
+        - selected_media | length == 0
+        - selected_git_tools | length == 0
+        - selected_servers | length == 0
+        - selected_cli_tools | length == 0
+        - selected_network_tools | length == 0
+        - selected_shells | length == 0
+
+    - name: Confirm installation
+      ansible.builtin.pause:
+        prompt: "Proceed with installation? Type yes to continue"
+      register: install_confirmation
+
+    - name: Stop unless the installation was confirmed
+      ansible.builtin.meta: end_play
+      when: install_confirmation.user_input | default('no') | lower != 'yes'
+
+    - name: Install selected browsers
+      ansible.builtin.import_role:
+        name: browsers
+      when: selected_browsers | length > 0
+
+    - name: Install selected editors
+      ansible.builtin.import_role:
+        name: editors
+      when: selected_editors | length > 0
+
+    - name: Install selected terminals
+      ansible.builtin.import_role:
+        name: terminals
+      when: selected_terminals | length > 0
+
+    - name: Install selected databases
+      ansible.builtin.import_role:
+        name: databases
+      when: selected_databases | length > 0
+
+    - name: Install selected database managers
+      ansible.builtin.import_role:
+        name: database_managers
+      when: selected_database_managers | length > 0
+
+    - name: Install selected DevOps tools
+      ansible.builtin.import_role:
+        name: devops
+      when: selected_devops | length > 0
+
+    - name: Install selected tunneling tools
+      ansible.builtin.import_role:
+        name: tunneling
+      when: selected_tunneling | length > 0
+
+    - name: Install selected social apps
+      ansible.builtin.import_role:
+        name: socials
+      when: selected_socials | length > 0
+
+    - name: Install selected shells
+      ansible.builtin.import_role:
+        name: shells
+      when: selected_shells | length > 0
+
+    - name: Install selected network tools
+      ansible.builtin.import_role:
+        name: network_tools
+      when: selected_network_tools | length > 0
+
+    - name: Install selected command line tools
+      ansible.builtin.import_role:
+        name: cli_tools
+      when: selected_cli_tools | length > 0
+
+    - name: Install selected servers
+      ansible.builtin.import_role:
+        name: server
+      when: selected_servers | length > 0
+
+    - name: Install selected Git tools
+      ansible.builtin.import_role:
+        name: git_tools
+      when: selected_git_tools | length > 0
+
+    - name: Install selected media apps
+      ansible.builtin.import_role:
+        name: media
+      when: selected_media | length > 0
+
+    - name: Install selected note taking apps
+      ansible.builtin.import_role:
+        name: notes
+      when: selected_notes | length > 0
+
+    - name: Install selected VPN clients
+      ansible.builtin.import_role:
+        name: vpn
+      when: selected_vpn | length > 0
+
+    - name: Install selected API clients
+      ansible.builtin.import_role:
+        name: api_clients
+      when: selected_api_clients | length > 0
+
+    - name: Install selected build tools
+      ansible.builtin.import_role:
+        name: build_tools
+      when: selected_build_tools | length > 0
+
+    - name: Install selected language runtimes
+      ansible.builtin.import_role:
+        name: languages
+      when: selected_languages | length > 0
+
+    - name: Configure the shells
+      ansible.builtin.import_role:
+        name: shell_config

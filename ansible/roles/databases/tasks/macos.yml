@@ -1,0 +1,61 @@
+- name: Install the databases that Homebrew core carries
+  community.general.homebrew:
+    name: "{{ item.formula }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: postgresql
+      formula: "postgresql@{{ postgresql_version }}"
+    - key: mariadb
+      formula: mariadb
+    - key: mysql
+      formula: mysql
+    - key: couchdb
+      formula: couchdb
+    - key: redis
+      formula: redis
+    - key: sqlite
+      formula: sqlite
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in databases_to_install
+
+- name: Install MongoDB
+  when: "'mongodb' in databases_to_install"
+  block:
+    - name: Add the MongoDB Homebrew tap
+      community.general.homebrew_tap:
+        name: mongodb/brew
+        state: present
+        path: "{{ homebrew_prefix }}/bin"
+
+    - name: Install the MongoDB formula
+      community.general.homebrew:
+        name: mongodb-community
+        state: present
+        path: "{{ homebrew_prefix }}/bin"
+
+# community.general.homebrew_services would be tidier here, but it needs
+# community.general 9 or newer. "brew services start" works on every version
+# and is safe to repeat. SQLite is a library, so it has no service.
+- name: Start the databases and register them to run at login
+  ansible.builtin.command:
+    cmd: "{{ homebrew_prefix }}/bin/brew services start {{ item.formula }}"
+  register: brew_service_start
+  changed_when: "'Successfully started' in brew_service_start.stdout"
+  loop:
+    - key: postgresql
+      formula: "postgresql@{{ postgresql_version }}"
+    - key: mariadb
+      formula: mariadb
+    - key: mysql
+      formula: mysql
+    - key: mongodb
+      formula: mongodb-community
+    - key: couchdb
+      formula: couchdb
+    - key: redis
+      formula: redis
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in databases_to_install

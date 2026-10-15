@@ -1,0 +1,11 @@
+# Note taking apps this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# Notion publishes no Linux client at all. The only Linux option is an
+# unofficial community snap from an unverified publisher, so it is left out.
+notes_supported:
+  MacOSX:
+    - notion
+    - obsidian
+  Ubuntu: &all_notes
+    - obsidian
+  Debian: *all_notes

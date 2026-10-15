@@ -1,0 +1,13 @@
+# Media apps this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# VokoscreenNG is a Qt screen recorder built for Linux only, with no
+# Homebrew cask. OBS covers the same job on macOS.
+media_supported:
+  MacOSX:
+    - vlc
+    - obs
+  Ubuntu: &all_media
+    - vlc
+    - obs
+    - vokoscreen
+  Debian: *all_media

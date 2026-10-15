@@ -1,0 +1,38 @@
+- name: Check whether Homebrew is already installed
+  ansible.builtin.stat:
+    path: "{{ homebrew_prefix }}/bin/brew"
+  register: homebrew_binary
+
+- name: Install Homebrew
+  when: not homebrew_binary.stat.exists
+  block:
+    - name: Download the Homebrew installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
+        dest: /tmp/install-homebrew.sh
+        mode: '0755'
+
+    - name: Run the Homebrew installer
+      # Homebrew refuses to run as root, so this task must not use become.
+      become: false
+      ansible.builtin.command:
+        cmd: /bin/bash /tmp/install-homebrew.sh
+        creates: "{{ homebrew_prefix }}/bin/brew"
+      environment:
+        NONINTERACTIVE: '1'
+
+  # The Homebrew installer only prints instructions and stops, so without
+  # this the brew command is missing from a fresh login. macOS reads every
+  # file in /etc/paths.d at login, which covers zsh, bash and fish alike.
+- name: Put Homebrew on the PATH for every shell
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/paths.d/homebrew
+    content: "{{ homebrew_prefix }}/bin\n"
+    owner: root
+    group: wheel
+    mode: '0644'
+
+- name: Confirm that Homebrew responds
+  ansible.builtin.command: "{{ homebrew_prefix }}/bin/brew --version"
+  changed_when: false

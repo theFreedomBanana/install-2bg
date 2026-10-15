@@ -1,0 +1,7 @@
+- name: Install the command line tools
+  # Every one of these is in Homebrew core under its own name.
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop: "{{ cli_tools_to_install }}"

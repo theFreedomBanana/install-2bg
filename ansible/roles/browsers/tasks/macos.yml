@@ -1,0 +1,25 @@
+- name: Install browsers
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: firefox
+      cask: firefox
+    - key: chrome
+      cask: google-chrome
+    - key: edge
+      cask: microsoft-edge
+    - key: chromium
+      cask: chromium
+    - key: brave
+      cask: brave-browser
+    - key: opera
+      cask: opera
+    - key: zen
+      cask: zen
+    - key: comet
+      cask: comet
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in browsers_to_install

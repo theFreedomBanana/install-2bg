@@ -1,0 +1,27 @@
+- name: Work out which terminals this machine can install
+  ansible.builtin.set_fact:
+    terminals_installable: >-
+      {{
+        terminals_supported[ansible_distribution]
+        | default(terminals_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which terminals to install
+  ansible.builtin.set_fact:
+    terminals_to_install: "{{ selected_terminals | intersect(terminals_installable) }}"
+
+- name: Report terminals that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_terminals | difference(terminals_installable) | join(', ') }}
+  when: selected_terminals | difference(terminals_installable) | length > 0
+
+- name: Install terminals on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install terminals on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

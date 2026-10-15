@@ -1,0 +1,35 @@
+# Browsers this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family,
+# so a derivative such as Pop!_OS falls back to the Debian list.
+browsers_supported:
+  MacOSX:
+    - firefox
+    - chrome
+    - edge
+    - chromium
+    - brave
+    - opera
+    - zen
+    - comet
+  Ubuntu:
+    - firefox
+    - chrome
+    - edge
+    - chromium
+    - brave
+    - opera
+    - zen
+  Debian:
+    - firefox
+    - chrome
+    - edge
+    - chromium
+    - brave
+    - opera
+    - zen
+
+# Google and Microsoft publish .deb packages for amd64 only, so these two
+# cannot be installed on an arm64 Debian or Ubuntu machine.
+browsers_amd64_only:
+  - chrome
+  - edge

@@ -1,0 +1,45 @@
+- name: Work out which DevOps tools this machine can install
+  ansible.builtin.set_fact:
+    devops_installable: >-
+      {{
+        devops_supported[ansible_distribution]
+        | default(devops_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Drop DevOps tools that publish no package for this architecture
+  ansible.builtin.set_fact:
+    devops_installable: "{{ devops_installable | difference(devops_amd64_only) }}"
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_architecture != 'x86_64'
+
+- name: Work out which DevOps tools to install
+  ansible.builtin.set_fact:
+    devops_to_install: "{{ selected_devops | intersect(devops_installable) }}"
+
+- name: Report DevOps tools that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_devops | difference(devops_installable) | join(', ') }}
+  when: selected_devops | difference(devops_installable) | length > 0
+
+- name: Warn when a local cluster tool has no container runtime
+  # Docker might already be on the machine, so this warns instead of failing.
+  ansible.builtin.debug:
+    msg: >-
+      {{ devops_to_install | intersect(devops_needs_container_runtime) | join(', ') }}
+      needs a container runtime. Docker was not selected, so make sure it is
+      already installed.
+  when:
+    - devops_to_install | intersect(devops_needs_container_runtime) | length > 0
+    - "'docker' not in devops_to_install"
+
+- name: Install DevOps tools on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install DevOps tools on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

@@ -1,0 +1,57 @@
+- name: Work out which runtimes this machine can install
+  ansible.builtin.set_fact:
+    languages_installable: >-
+      {{
+        languages_supported[ansible_distribution]
+        | default(languages_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which runtimes to install
+  ansible.builtin.set_fact:
+    languages_to_install: "{{ selected_languages | intersect(languages_installable) }}"
+
+- name: Report runtimes that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_languages | difference(languages_installable) | join(', ') }}
+  when: selected_languages | difference(languages_installable) | length > 0
+
+- name: Install mise on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install mise on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Confirm that mise responds
+  ansible.builtin.command: "{{ mise_bin }} --version"
+  changed_when: false
+
+- name: Check which runtimes mise still needs
+  # --dry-run-code exits 1 when there is something to change, which gives
+  # an exact answer instead of guessing from the output text.
+  ansible.builtin.command:
+    cmd: >-
+      {{ mise_bin }} use --global --dry-run-code
+      {{ item }}@{{ mise_versions[item] }}
+  register: mise_pending
+  changed_when: false
+  failed_when: mise_pending.rc not in [0, 1]
+  loop: "{{ languages_to_install }}"
+  loop_control:
+    label: "{{ item }}@{{ mise_versions[item] }}"
+
+- name: Register the chosen runtimes with mise
+  # "use --global" merges into ~/.config/mise/config.toml rather than
+  # replacing it, and installs the runtime at the same time.
+  ansible.builtin.command:
+    cmd: >-
+      {{ mise_bin }} --yes use --global
+      {{ item.item }}@{{ mise_versions[item.item] }}
+  loop: "{{ mise_pending.results }}"
+  loop_control:
+    label: "{{ item.item }}@{{ mise_versions[item.item] }}"
+  when: item.rc == 1

@@ -1,0 +1,30 @@
+# VPN clients this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# All four publish amd64 and arm64 packages, so the lists match.
+vpn_supported:
+  MacOSX: &all_vpn
+    - nordvpn
+    - mullvad
+    - protonvpn
+    - wireguard
+  Ubuntu: *all_vpn
+  Debian: *all_vpn
+
+# Vendor apt repositories, verified against each Release file.
+# Every one serves a single suite for all Debian releases.
+vpn_repositories:
+  nordvpn:
+    key_url: https://repo.nordvpn.com/gpg/nordvpn_public.asc
+    uris: https://repo.nordvpn.com/deb/nordvpn/debian
+    suite: stable
+    package: nordvpn
+  mullvad:
+    key_url: https://repository.mullvad.net/deb/mullvad-keyring.asc
+    uris: https://repository.mullvad.net/deb/stable
+    suite: stable
+    package: mullvad-vpn
+  protonvpn:
+    key_url: https://repo.protonvpn.com/debian/public_key.asc
+    uris: https://repo.protonvpn.com/debian
+    suite: stable
+    package: protonvpn-gui

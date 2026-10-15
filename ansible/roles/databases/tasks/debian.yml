@@ -1,0 +1,216 @@
+- name: Install prerequisites for database repositories
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+      - debconf-utils
+    state: present
+  when: >-
+    databases_to_install | intersect(['mongodb', 'couchdb'])
+    | length > 0
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: >-
+    databases_to_install | intersect(['mongodb', 'couchdb'])
+    | length > 0
+
+- name: Install SQLite
+  # SQLite is a library with a command line shell, so it has no service.
+  become: true
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+  when: "'sqlite' in databases_to_install"
+
+- name: Install PostgreSQL
+  when: "'postgresql' in databases_to_install"
+  block:
+    - name: Install the PostgreSQL packages
+      become: true
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+        state: present
+
+    - name: Start PostgreSQL and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+- name: Install MariaDB
+  when: "'mariadb' in databases_to_install"
+  block:
+    - name: Install the MariaDB server
+      become: true
+      ansible.builtin.apt:
+        name: mariadb-server
+        state: present
+
+    - name: Start MariaDB and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: true
+
+- name: Install MySQL
+  when: "'mysql' in databases_to_install"
+  block:
+    - name: Install the MySQL server
+      become: true
+      ansible.builtin.apt:
+        name: mysql-server
+        state: present
+
+    - name: Start MySQL and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: mysql
+        state: started
+        enabled: true
+
+- name: Install Redis
+  when: "'redis' in databases_to_install"
+  block:
+    - name: Install the Redis server
+      become: true
+      ansible.builtin.apt:
+        name: redis-server
+        state: present
+
+    - name: Start Redis and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: redis-server
+        state: started
+        enabled: true
+
+- name: Install CouchDB
+  when: "'couchdb' in databases_to_install"
+  block:
+    - name: Download the CouchDB repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://couchdb.apache.org/repo/keys.asc
+        dest: /etc/apt/keyrings/couchdb.asc
+        mode: '0644'
+
+    - name: Configure the CouchDB repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: couchdb
+        types: [deb]
+        uris: https://apache.jfrog.io/artifactory/couchdb-deb/
+        suites: ["{{ ansible_distribution_release }}"]
+        components: [main]
+        signed_by: /etc/apt/keyrings/couchdb.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the CouchDB repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Preseed the CouchDB installer answers
+      # Without this the package stops and asks for a mode and a password.
+      become: true
+      ansible.builtin.debconf:
+        name: couchdb
+        question: "{{ item.question }}"
+        vtype: "{{ item.vtype }}"
+        value: "{{ item.value }}"
+      loop:
+        - question: couchdb/mode
+          vtype: select
+          value: standalone
+        - question: couchdb/bindaddress
+          vtype: string
+          value: 127.0.0.1
+        - question: couchdb/adminpass
+          vtype: password
+          value: "{{ couchdb_admin_password }}"
+        - question: couchdb/adminpass_again
+          vtype: password
+          value: "{{ couchdb_admin_password }}"
+      loop_control:
+        label: "{{ item.question }}"
+      no_log: true
+
+    - name: Run the CouchDB installer
+      become: true
+      ansible.builtin.apt:
+        name: couchdb
+        state: present
+
+    - name: Start CouchDB and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: couchdb
+        state: started
+        enabled: true
+
+- name: Install MongoDB
+  when: "'mongodb' in databases_to_install"
+  block:
+    - name: Report when MongoDB publishes no package for this release
+      ansible.builtin.debug:
+        msg: >-
+          Skipped MongoDB. No package is published for
+          {{ ansible_distribution }} {{ ansible_distribution_version }}.
+          Published releases: {{ mongodb_releases | join(', ') }}.
+      when: ansible_distribution_version not in mongodb_releases
+
+    - name: Install MongoDB from the vendor repository
+      when: ansible_distribution_version in mongodb_releases
+      block:
+        - name: Download the MongoDB repository signing key
+          become: true
+          ansible.builtin.get_url:
+            url: "https://www.mongodb.org/static/pgp/server-{{ mongodb_version }}.asc"
+            dest: "/etc/apt/keyrings/mongodb-server-{{ mongodb_version }}.asc"
+            mode: '0644'
+
+        - name: Configure the MongoDB repository
+          become: true
+          ansible.builtin.deb822_repository:
+            name: "mongodb-org-{{ mongodb_version }}"
+            types: [deb]
+            uris: "https://repo.mongodb.org/apt/{{ ansible_distribution | lower }}"
+            suites:
+              - "{{ ansible_distribution_release }}/mongodb-org/{{ mongodb_version }}"
+            components:
+              - "{{ 'multiverse' if ansible_distribution == 'Ubuntu' else 'main' }}"
+            architectures: [amd64, arm64]
+            signed_by: "/etc/apt/keyrings/mongodb-server-{{ mongodb_version }}.asc"
+            state: present
+            enabled: true
+
+        - name: Refresh the apt cache for the MongoDB repository
+          become: true
+          ansible.builtin.apt:
+            update_cache: true
+
+        - name: Run the MongoDB installer
+          become: true
+          ansible.builtin.apt:
+            name: mongodb-org
+            state: present
+
+        - name: Start MongoDB and enable it at boot
+          become: true
+          ansible.builtin.service:
+            name: mongod
+            state: started
+            enabled: true
+  vars:
+    mongodb_releases: "{{ mongodb_supported_releases[ansible_distribution] | default([], true) }}"

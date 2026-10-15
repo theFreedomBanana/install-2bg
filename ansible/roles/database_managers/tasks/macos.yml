@@ -1,0 +1,21 @@
+- name: Install database managers
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: dbeaver
+      cask: dbeaver-community
+    - key: beekeeper
+      cask: beekeeper-studio
+    - key: pgadmin
+      cask: pgadmin4
+    - key: dbvis
+      cask: dbvisualizer
+    - key: compass
+      cask: mongodb-compass
+    - key: redisinsight
+      cask: redisinsight
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in database_managers_to_install

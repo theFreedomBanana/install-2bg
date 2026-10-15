@@ -1,0 +1,27 @@
+- name: Work out which databases this machine can install
+  ansible.builtin.set_fact:
+    databases_installable: >-
+      {{
+        databases_supported[ansible_distribution]
+        | default(databases_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which databases to install
+  ansible.builtin.set_fact:
+    databases_to_install: "{{ selected_databases | intersect(databases_installable) }}"
+
+- name: Report databases that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_databases | difference(databases_installable) | join(', ') }}
+  when: selected_databases | difference(databases_installable) | length > 0
+
+- name: Install databases on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install databases on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

@@ -1,0 +1,134 @@
+- name: Work out which directories belong on the PATH
+  ansible.builtin.set_fact:
+    shell_config_paths: >-
+      {{
+        ([homebrew_prefix ~ '/opt/postgresql@' ~ postgresql_version ~ '/bin']
+         if ansible_os_family == 'Darwin'
+            and 'postgresql' in selected_databases
+         else [])
+        +
+        ([ansible_user_dir ~ '/.local/bin']
+         if ansible_os_family == 'Debian'
+         else [])
+      }}
+
+- name: Decide whether mise needs activating
+  ansible.builtin.set_fact:
+    shell_config_activate_mise: "{{ selected_languages | default([]) | length > 0 }}"
+
+- name: Work out which shells to configure
+  # The selected shells, plus whichever shell is already in use, so the
+  # generated file is loaded even when no shell was selected.
+  ansible.builtin.set_fact:
+    shell_config_targets: >-
+      {{
+        (selected_shells
+         + [shell_binary_keys[ansible_user_shell | basename] | default('')])
+        | reject('equalto', '')
+        | unique
+        | select('in', shell_profiles)
+        | list
+      }}
+
+- name: Report which shells will be configured
+  ansible.builtin.debug:
+    msg: >-
+      Writing shell configuration for:
+      {{
+        shell_config_targets | join(', ')
+        if shell_config_targets | length > 0
+        else 'no recognised shell'
+      }}
+
+- name: Configure each shell
+  when: shell_config_targets | length > 0
+  block:
+    - name: Create the generated configuration directory
+      ansible.builtin.file:
+        path: "{{ shell_config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write the generated configuration for each shell
+      ansible.builtin.template:
+        src: "{{ shell_profiles[item].template }}"
+        dest: "{{ shell_config_dir }}/{{ shell_profiles[item].env_file }}"
+        mode: '0644'
+      loop: "{{ shell_config_targets }}"
+      loop_control:
+        label: "{{ shell_profiles[item].env_file }}"
+
+    - name: Create the startup file directory for each shell
+      ansible.builtin.file:
+        path: "{{ (ansible_user_dir ~ '/' ~ shell_profiles[item].rc) | dirname }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ shell_config_targets }}"
+      loop_control:
+        label: "{{ shell_profiles[item].rc }}"
+
+    - name: Load the generated configuration from each startup file
+      # One marked block per shell, so re-running updates it in place and
+      # leaves the rest of the file alone.
+      ansible.builtin.blockinfile:
+        path: "{{ ansible_user_dir }}/{{ shell_profiles[item].rc }}"
+        block: "{{ shell_profiles[item].source_line }}"
+        marker: "# {mark} workstation configuration"
+        create: true
+        mode: '0644'
+      loop: "{{ shell_config_targets }}"
+      loop_control:
+        label: "{{ shell_profiles[item].rc }}"
+
+- name: Change the login shell
+  when:
+    - selected_login_shell | default('') | length > 0
+    - selected_login_shell in shell_profiles
+  block:
+    - name: Locate the chosen shell
+      ansible.builtin.command: "command -v {{ shell_profiles[selected_login_shell].binary }}"
+      register: login_shell_path
+      changed_when: false
+      failed_when: false
+
+    - name: Require the chosen shell to be installed
+      ansible.builtin.assert:
+        that:
+          - login_shell_path.rc == 0
+        fail_msg: >-
+          {{ shell_profiles[selected_login_shell].binary }} was not found on
+          the PATH, so the login shell was left unchanged.
+
+    - name: Read the list of permitted login shells
+      ansible.builtin.slurp:
+        src: /etc/shells
+      register: permitted_shells
+
+    - name: Add the chosen shell to the permitted list
+      # chsh refuses any shell that is not listed in /etc/shells.
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/shells
+        line: "{{ login_shell_path.stdout | trim }}"
+        state: present
+      when: >-
+        login_shell_path.stdout | trim
+        not in (permitted_shells.content | b64decode).splitlines()
+
+    - name: Set the login shell
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        shell: "{{ login_shell_path.stdout | trim }}"
+
+- name: Explain the shells that mise cannot activate from one line
+  # Nushell needs mise's output saved to a file and then used, which is two
+  # steps and cannot be written as a single idempotent line.
+  ansible.builtin.debug:
+    msg: >-
+      mise was installed but not activated for
+      {{ shell_config_targets | intersect(shell_config_mise_manual) | join(', ') }}.
+      Run "mise activate <shell>" and follow the printed instructions.
+  when:
+    - shell_config_activate_mise
+    - shell_config_targets | intersect(shell_config_mise_manual) | length > 0

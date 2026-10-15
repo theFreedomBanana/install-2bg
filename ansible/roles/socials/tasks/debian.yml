@@ -1,0 +1,30 @@
+# None of these three publishes an apt repository, so each is a direct
+# download. Zoom and Discord serve a "latest" URL; Slack needs a version.
+- name: Download the social app packages
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/tmp/{{ item.key }}.deb"
+    mode: '0644'
+  loop:
+    - key: zoom
+      url: https://zoom.us/client/latest/zoom_amd64.deb
+    - key: discord
+      url: https://discord.com/api/download?platform=linux&format=deb
+    - key: slack
+      url: >-
+        https://downloads.slack-edge.com/desktop-releases/linux/x64/{{
+        slack_version }}/slack-desktop-{{ slack_version }}-amd64.deb
+  loop_control:
+    label: "{{ item.key }}"
+  when: item.key in socials_to_install
+
+- name: Run the social app installers
+  become: true
+  ansible.builtin.apt:
+    deb: "/tmp/{{ item }}.deb"
+    state: present
+  loop:
+    - zoom
+    - discord
+    - slack
+  when: item in socials_to_install

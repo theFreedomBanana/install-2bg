@@ -1,0 +1,93 @@
+- name: Install Obsidian
+  # Obsidian publishes an amd64 package and AppImages for both
+  # architectures, but no apt repository.
+  when: "'obsidian' in notes_to_install"
+  block:
+    - name: Look up the latest Obsidian release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest
+        return_content: true
+      register: obsidian_release
+
+    - name: Find the Obsidian package for this architecture
+      ansible.builtin.set_fact:
+        obsidian_package_url: >-
+          {{
+            obsidian_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_amd64\.deb$')
+            | first | default('')
+          }}
+        obsidian_appimage_url: >-
+          {{
+            obsidian_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '-arm64\.AppImage$')
+            | first | default('')
+          }}
+
+    - name: Install Obsidian from the package
+      when: ansible_architecture == 'x86_64'
+      block:
+        - name: Require a matching Obsidian package
+          ansible.builtin.assert:
+            that:
+              - obsidian_package_url | length > 0
+            fail_msg: No amd64 Obsidian package was found on the latest release.
+
+        - name: Download the Obsidian package
+          ansible.builtin.get_url:
+            url: "{{ obsidian_package_url }}"
+            dest: /tmp/obsidian.deb
+            mode: '0644'
+
+        - name: Run the Obsidian installer
+          become: true
+          ansible.builtin.apt:
+            deb: /tmp/obsidian.deb
+            state: present
+
+    - name: Install Obsidian from the AppImage
+      # Obsidian publishes no arm64 package, only an arm64 AppImage.
+      when: ansible_architecture != 'x86_64'
+      block:
+        - name: Require a matching Obsidian AppImage
+          ansible.builtin.assert:
+            that:
+              - obsidian_appimage_url | length > 0
+            fail_msg: No arm64 Obsidian AppImage was found on the latest release.
+
+        - name: Install the AppImage runtime dependency
+          become: true
+          ansible.builtin.apt:
+            name: "{{ appimage_fuse_package }}"
+            state: present
+
+        - name: Create the local application directories
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - "{{ ansible_user_dir }}/.local/bin"
+            - "{{ ansible_user_dir }}/.local/share/applications"
+
+        - name: Download the Obsidian AppImage
+          ansible.builtin.get_url:
+            url: "{{ obsidian_appimage_url }}"
+            dest: "{{ ansible_user_dir }}/.local/bin/obsidian.AppImage"
+            mode: '0755'
+
+        - name: Add a desktop entry for Obsidian
+          ansible.builtin.copy:
+            dest: "{{ ansible_user_dir }}/.local/share/applications/obsidian.desktop"
+            mode: '0644'
+            content: |
+              [Desktop Entry]
+              Name=Obsidian
+              Comment=Knowledge base that works on local Markdown files
+              Exec={{ ansible_user_dir }}/.local/bin/obsidian.AppImage %U
+              Icon=obsidian
+              Type=Application
+              Categories=Office;TextEditor;
+              StartupWMClass=obsidian

@@ -1,0 +1,72 @@
+# mise manages every runtime, so adding a language is one menu entry and one
+# line here rather than a new role.
+#
+# Override any of these at run time, for example:
+#   ansible-playbook playbook.yml -e mise_versions='{"python":"3.12"}'
+#
+# "latest" is the default. A few are pinned to a minor because their library
+# ecosystems lag behind a new release; bump those deliberately.
+mise_versions:
+  node: lts
+  bun: latest
+  deno: latest
+  python: '3.13'
+  go: latest
+  # rustup's stable channel, which mise updates in place.
+  rust: stable
+  # Java needs a vendor as well as a version. Temurin 25 is the current
+  # long term support release.
+  java: temurin-25
+  kotlin: latest
+  scala: latest
+  clojure: latest
+  groovy: latest
+  ruby: '3.4'
+  erlang: latest
+  elixir: latest
+  dotnet: latest
+  swift: latest
+  zig: latest
+  crystal: latest
+  dart: latest
+  julia: latest
+  lua: latest
+  perl: latest
+
+# Where mise lands on each platform. Confirmed from the .deb contents.
+mise_bin: >-
+  {{
+    homebrew_prefix ~ '/bin/mise'
+    if ansible_os_family == 'Darwin'
+    else '/usr/bin/mise'
+  }}
+
+
+# Runtimes this role can install, per platform. mise handles all of these on
+# both platforms, so the lists match.
+languages_supported:
+  MacOSX: &all_languages
+    - node
+    - bun
+    - deno
+    - python
+    - go
+    - rust
+    - java
+    - kotlin
+    - scala
+    - clojure
+    - groovy
+    - ruby
+    - erlang
+    - elixir
+    - dotnet
+    - swift
+    - zig
+    - crystal
+    - dart
+    - julia
+    - lua
+    - perl
+  Ubuntu: *all_languages
+  Debian: *all_languages

@@ -1,0 +1,7 @@
+- name: Update package manager for Debian or Ubuntu
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install the package manager for macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

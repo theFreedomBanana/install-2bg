@@ -1,0 +1,134 @@
+- name: Install HTTPie
+  # HTTPie's command line client is in the Debian and Ubuntu archives.
+  become: true
+  ansible.builtin.apt:
+    name: httpie
+    state: present
+  when: "'httpie' in api_clients_to_install"
+
+- name: Install Postman using Snap
+  # Postman publishes no apt package, only a tarball and this snap.
+  community.general.snap:
+    name: postman
+    state: present
+  become: true
+  when: "'postman' in api_clients_to_install"
+
+- name: Install Bruno
+  # Bruno publishes packages on its releases page, not an apt repository.
+  when: "'bruno' in api_clients_to_install"
+  block:
+    - name: Look up the latest Bruno release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/usebruno/bruno/releases/latest
+        return_content: true
+      register: bruno_release
+
+    - name: Find the Bruno package for this architecture
+      ansible.builtin.set_fact:
+        bruno_package_url: >-
+          {{
+            bruno_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_' ~ bruno_arch ~ '_linux\.deb$')
+            | first | default('')
+          }}
+      vars:
+        bruno_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching Bruno package
+      ansible.builtin.assert:
+        that:
+          - bruno_package_url | length > 0
+        fail_msg: >-
+          No Bruno package is published for {{ ansible_architecture }}.
+
+    - name: Download the Bruno package
+      ansible.builtin.get_url:
+        url: "{{ bruno_package_url }}"
+        dest: /tmp/bruno.deb
+        mode: '0644'
+
+    - name: Run the Bruno installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/bruno.deb
+        state: present
+
+- name: Install Hurl
+  when: "'hurl' in api_clients_to_install"
+  block:
+    - name: Look up the latest Hurl release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/Orange-OpenSource/hurl/releases/latest
+        return_content: true
+      register: hurl_release
+
+    - name: Find the Hurl package for this architecture
+      ansible.builtin.set_fact:
+        hurl_package_url: >-
+          {{
+            hurl_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_' ~ hurl_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        hurl_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching Hurl package
+      ansible.builtin.assert:
+        that:
+          - hurl_package_url | length > 0
+        fail_msg: >-
+          No Hurl package is published for {{ ansible_architecture }}.
+
+    - name: Download the Hurl package
+      ansible.builtin.get_url:
+        url: "{{ hurl_package_url }}"
+        dest: /tmp/hurl.deb
+        mode: '0644'
+
+    - name: Run the Hurl installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/hurl.deb
+        state: present
+
+- name: Install Insomnia
+  # Insomnia publishes an amd64 package only.
+  when: "'insomnia' in api_clients_to_install"
+  block:
+    - name: Look up the latest Insomnia release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/Kong/insomnia/releases/latest
+        return_content: true
+      register: insomnia_release
+
+    - name: Find the Insomnia package
+      ansible.builtin.set_fact:
+        insomnia_package_url: >-
+          {{
+            insomnia_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '\.deb$')
+            | first | default('')
+          }}
+
+    - name: Require a matching Insomnia package
+      ansible.builtin.assert:
+        that:
+          - insomnia_package_url | length > 0
+        fail_msg: No Insomnia package was found on the latest release.
+
+    - name: Download the Insomnia package
+      ansible.builtin.get_url:
+        url: "{{ insomnia_package_url }}"
+        dest: /tmp/insomnia.deb
+        mode: '0644'
+
+    - name: Run the Insomnia installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/insomnia.deb
+        state: present

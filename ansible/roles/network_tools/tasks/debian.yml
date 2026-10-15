@@ -1,0 +1,51 @@
+- name: Install Nmap
+  become: true
+  ansible.builtin.apt:
+    name: nmap
+    state: present
+  when: "'nmap' in network_tools_to_install"
+
+- name: Install ss
+  # ss lives in iproute2, which Debian and Ubuntu both treat as essential,
+  # so this task normally finds it already present.
+  become: true
+  ansible.builtin.apt:
+    name: iproute2
+    state: present
+  when: "'ss' in network_tools_to_install"
+
+- name: Install Wireshark
+  when: "'wireshark' in network_tools_to_install"
+  block:
+    - name: Install the debconf helper
+      become: true
+      ansible.builtin.apt:
+        name: debconf-utils
+        state: present
+
+    - name: Preseed the Wireshark capture permission question
+      # Without this the package stops and asks whether non-root users may
+      # capture packets.
+      become: true
+      ansible.builtin.debconf:
+        name: wireshark-common
+        question: wireshark-common/install-setuid
+        vtype: boolean
+        value: "{{ wireshark_allow_non_root_capture | string | lower }}"
+
+    - name: Install the Wireshark packages
+      become: true
+      ansible.builtin.apt:
+        name:
+          - wireshark
+          - tshark
+        state: present
+
+    - name: Add the user to the wireshark group
+      # Only useful when non-root capture was allowed above.
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: wireshark
+        append: true
+      when: wireshark_allow_non_root_capture

@@ -1,0 +1,6 @@
+- name: Install mise
+  community.general.homebrew:
+    name: mise
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+

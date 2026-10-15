@@ -1,0 +1,11 @@
+# Git tools this role can install, per platform. All five work on both.
+git_tools_supported:
+  MacOSX: &all_git_tools
+    - git
+    - gh
+    - lazygit
+    - git-delta
+    - git-lfs
+  Ubuntu: *all_git_tools
+  Debian: *all_git_tools
+

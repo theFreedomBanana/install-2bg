@@ -1,0 +1,23 @@
+- name: Install Wireshark
+  # The cask is the graphical analyser, which brings tshark with it.
+  community.general.homebrew_cask:
+    name: wireshark
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'wireshark' in network_tools_to_install"
+
+- name: Install the command line network tools
+  community.general.homebrew:
+    name: "{{ item.formula }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: nmap
+      formula: nmap
+    # macOS ships no ss. iproute2mac is a wrapper that provides ip, bridge
+    # and ss on top of the native BSD tools.
+    - key: ss
+      formula: iproute2mac
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in network_tools_to_install

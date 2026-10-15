@@ -1,0 +1,68 @@
+# Everything needed to write one generated file per shell and wire it up.
+# No two shell families share syntax, so each gets its own template and its
+# own line to load the result.
+#   template     the Jinja template that renders this shell's syntax
+#   env_file     name of the generated file under shell_config_dir
+#   rc           the shell's own startup file, relative to the home directory
+#   source_line  the line added to that startup file
+#   binary       the command name, used to locate the shell for chsh
+shell_profiles:
+  zsh:
+    template: env.posix.j2
+    env_file: env.zsh
+    rc: .zshrc
+    source_line: 'source "$HOME/.config/workstation/env.zsh"'
+    mise_activate: 'eval "$(mise activate zsh)"'
+    binary: zsh
+  bash:
+    template: env.posix.j2
+    env_file: env.bash
+    rc: .bashrc
+    source_line: 'source "$HOME/.config/workstation/env.bash"'
+    mise_activate: 'eval "$(mise activate bash)"'
+    binary: bash
+  fish:
+    template: env.fish.j2
+    env_file: env.fish
+    rc: .config/fish/config.fish
+    source_line: 'source $HOME/.config/workstation/env.fish'
+    mise_activate: 'mise activate fish | source'
+    binary: fish
+  nushell:
+    template: env.nu.j2
+    env_file: env.nu
+    rc: .config/nushell/config.nu
+    source_line: 'source ~/.config/workstation/env.nu'
+    mise_activate: ''
+    binary: nu
+  xonsh:
+    template: env.xsh.j2
+    env_file: env.xsh
+    rc: .xonshrc
+    source_line: 'source ~/.config/workstation/env.xsh'
+    mise_activate: 'execx($(mise activate xonsh))'
+    binary: xonsh
+  elvish:
+    template: env.elv.j2
+    env_file: env.elv
+    rc: .config/elvish/rc.elv
+    source_line: 'eval (slurp < ~/.config/workstation/env.elv)'
+    mise_activate: 'eval (mise activate elvish | slurp)'
+    binary: elvish
+
+# Maps a login shell binary name back to a menu key, so the role can also
+# configure the shell that is already in use.
+shell_binary_keys:
+  zsh: zsh
+  bash: bash
+  fish: fish
+  nu: nushell
+  xonsh: xonsh
+  elvish: elvish
+
+# Where the generated files go.
+shell_config_dir: "{{ ansible_user_dir }}/.config/workstation"
+
+# Shells where mise activation needs more than one line.
+shell_config_mise_manual:
+  - nushell

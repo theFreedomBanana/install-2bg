@@ -1,0 +1,21 @@
+- name: Install the tunneling tools that Homebrew core carries
+  community.general.homebrew:
+    name: "{{ item.formula }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: localtunnel
+      formula: localtunnel
+    - key: zrok
+      formula: zrok
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in tunneling_to_install
+
+- name: Install ngrok
+  # ngrok moved from a formula to a cask.
+  community.general.homebrew_cask:
+    name: ngrok
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'ngrok' in tunneling_to_install"

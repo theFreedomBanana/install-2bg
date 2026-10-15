@@ -1,0 +1,12 @@
+# Python virtual environment. setup.sh rebuilds it, and a committed copy
+# would be useless anyway: a venv hardcodes absolute paths and one Python
+# version.
+.venv/
+venv/
+
+# Bytecode Python writes beside scripts/*.py
+__pycache__/
+*.py[cod]
+
+# Finder metadata
+.DS_Store

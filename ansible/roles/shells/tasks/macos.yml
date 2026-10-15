@@ -1,0 +1,20 @@
+- name: Install shells
+  # macOS already ships zsh. Homebrew provides a current version alongside it.
+  community.general.homebrew:
+    name: "{{ item.formula }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: zsh
+      formula: zsh
+    - key: fish
+      formula: fish
+    - key: nushell
+      formula: nushell
+    - key: xonsh
+      formula: xonsh
+    - key: elvish
+      formula: elvish
+  loop_control:
+    label: "{{ item.formula }}"
+  when: item.key in shells_to_install

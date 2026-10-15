@@ -1,0 +1,8 @@
+- name: Install the command line tools
+  # Every one of these is in the Debian and Ubuntu archives under its own
+  # name, so no vendor repositories are needed here.
+  become: true
+  ansible.builtin.apt:
+    name: "{{ cli_tools_to_install }}"
+    state: present
+  when: cli_tools_to_install | length > 0

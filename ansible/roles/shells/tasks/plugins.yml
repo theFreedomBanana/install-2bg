@@ -1,0 +1,49 @@
+- name: Install Oh My Zsh
+  when: "'oh-my-zsh' in selected_shell_plugins"
+  block:
+    - name: Download the Oh My Zsh installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: /tmp/install-oh-my-zsh.sh
+        mode: '0755'
+
+    - name: Run the Oh My Zsh installer
+      # Oh My Zsh lives in the user home, so this must not run as root.
+      # KEEP_ZSHRC stops the installer replacing an existing .zshrc, and
+      # --unattended stops it changing the login shell.
+      become: false
+      ansible.builtin.command:
+        cmd: /bin/sh /tmp/install-oh-my-zsh.sh --unattended
+        creates: "{{ ansible_user_dir }}/.oh-my-zsh"
+      environment:
+        KEEP_ZSHRC: 'yes'
+
+    - name: Install the zsh-autosuggestions plugin
+      # home/.zshrc lists this plugin, so zsh warns on start without it.
+      become: false
+      ansible.builtin.git:
+        repo: https://github.com/zsh-users/zsh-autosuggestions.git
+        dest: "{{ ansible_user_dir }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+        version: master
+        depth: 1
+
+- name: Install Fisher
+  when: "'fisher' in selected_shell_plugins"
+  block:
+    - name: Create the fish functions directory
+      become: false
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.config/fish/functions"
+        state: directory
+        mode: '0755'
+
+    - name: Run the Fisher installer
+      # Fisher is a set of fish functions, so it must be sourced inside fish.
+      become: false
+      ansible.builtin.shell:
+        cmd: >-
+          curl -sL
+          https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish
+          | source && fisher install jorgebucaran/fisher
+        executable: "{{ fish_path }}"
+        creates: "{{ ansible_user_dir }}/.config/fish/functions/fisher.fish"

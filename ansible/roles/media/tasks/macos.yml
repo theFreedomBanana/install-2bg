@@ -1,0 +1,9 @@
+- name: Install the media apps
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - vlc
+    - obs
+  when: item in media_to_install

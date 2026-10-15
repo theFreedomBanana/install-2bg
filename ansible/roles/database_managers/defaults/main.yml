@@ -1,0 +1,36 @@
+# DbVisualizer and MongoDB Compass publish version-pinned download URLs with
+# no "latest" redirect, so the Debian tasks need the version spelled out.
+dbvisualizer_version: 26.2.4
+mongodb_compass_version: 1.52.0
+
+# Database managers this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# pgAdmin's apt repository carries amd64 only.
+database_managers_supported:
+  MacOSX:
+    - dbeaver
+    - beekeeper
+    - pgadmin
+    - dbvis
+    - compass
+    - redisinsight
+  Ubuntu:
+    - dbeaver
+    - beekeeper
+    - pgadmin
+    - dbvis
+    - compass
+    - redisinsight
+  Debian:
+    - dbeaver
+    - beekeeper
+    - pgadmin
+    - dbvis
+    - compass
+    - redisinsight
+
+# These publish no arm64 Linux package.
+database_managers_amd64_only:
+  - pgadmin
+  - dbvis
+  - compass

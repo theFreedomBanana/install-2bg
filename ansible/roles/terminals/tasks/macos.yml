@@ -1,0 +1,19 @@
+- name: Install terminals
+  community.general.homebrew_cask:
+    name: "{{ item.cask }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - key: alacritty
+      cask: alacritty
+    - key: ghostty
+      cask: ghostty
+    - key: iterm2
+      cask: iterm2
+    - key: kitty
+      cask: kitty
+    - key: wezterm
+      cask: wezterm
+  loop_control:
+    label: "{{ item.cask }}"
+  when: item.key in terminals_to_install

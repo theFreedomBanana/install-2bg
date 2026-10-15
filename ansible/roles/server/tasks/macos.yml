@@ -1,0 +1,16 @@
+- name: Install Nginx
+  community.general.homebrew:
+    name: nginx
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  when: "'nginx' in servers_to_install"
+
+# Same approach as the databases role: "brew services start" works on every
+# community.general version and is safe to repeat. Homebrew's Nginx listens
+# on port 8080 rather than 80, so it needs no root.
+- name: Start Nginx and register it to run at login
+  ansible.builtin.command:
+    cmd: "{{ homebrew_prefix }}/bin/brew services start nginx"
+  register: brew_service_start
+  changed_when: "'Successfully started' in brew_service_start.stdout"
+  when: "'nginx' in servers_to_install"

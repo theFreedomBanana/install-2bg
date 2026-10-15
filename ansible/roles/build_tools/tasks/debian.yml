@@ -1,0 +1,7 @@
+- name: Install the build tool packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ build_tools_packages[item]['Debian'] }}"
+    state: present
+  loop: "{{ build_tools_to_install }}"
+  when: build_tools_packages[item]['Debian'] | length > 0

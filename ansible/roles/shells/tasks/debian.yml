@@ -1,0 +1,69 @@
+- name: Install the shells that the archives carry
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item.package }}"
+    state: present
+  loop:
+    - key: zsh
+      package: zsh
+    - key: fish
+      package: fish
+    - key: xonsh
+      package: xonsh
+    - key: elvish
+      package: elvish
+  loop_control:
+    label: "{{ item.package }}"
+  when: item.key in shells_to_install
+
+- name: Install Nushell
+  # Nushell is absent from the Debian archives, so this uses the official
+  # statically linked tarball from the project's own releases.
+  when: "'nushell' in shells_to_install"
+  block:
+    - name: Create the local binary directory
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Look up the latest Nushell release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/nushell/nushell/releases/latest
+        return_content: true
+      register: nushell_release
+
+    - name: Find the build matching this architecture
+      ansible.builtin.set_fact:
+        nushell_package_url: >-
+          {{
+            nushell_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', nushell_target ~ '\.tar\.gz$')
+            | first | default('')
+          }}
+      vars:
+        nushell_target: >-
+          {{
+            'aarch64-unknown-linux-musl'
+            if ansible_architecture == 'aarch64'
+            else 'x86_64-unknown-linux-musl'
+          }}
+
+    - name: Require a matching Nushell build
+      ansible.builtin.assert:
+        that:
+          - nushell_package_url | length > 0
+        fail_msg: >-
+          No Nushell build is published for {{ ansible_architecture }}.
+
+    - name: Unpack Nushell into the local binary directory
+      ansible.builtin.unarchive:
+        src: "{{ nushell_package_url }}"
+        dest: "{{ ansible_user_dir }}/.local/bin"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+          - --wildcards
+          - '*/nu'
+        creates: "{{ ansible_user_dir }}/.local/bin/nu"

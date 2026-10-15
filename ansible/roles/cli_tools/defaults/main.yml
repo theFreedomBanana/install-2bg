@@ -1,0 +1,23 @@
+# Command line tools this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+#
+# curl is left out on macOS. Homebrew's curl formula is keg-only, which means
+# it is never linked onto the PATH, because macOS already ships curl in
+# /usr/bin. Installing it would look like it worked and change nothing.
+cli_tools_supported:
+  MacOSX:
+    - eza
+    - wget
+    - htop
+    - fzf
+    - fzy
+    - tmux
+  Ubuntu: &all_cli_tools
+    - eza
+    - curl
+    - wget
+    - htop
+    - fzf
+    - fzy
+    - tmux
+  Debian: *all_cli_tools

@@ -1,0 +1,474 @@
+- name: Install prerequisites for the DevOps repositories
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+    state: present
+  when: >-
+    devops_to_install
+    | intersect(['docker', 'docker-compose', 'kubectl', 'helm',
+                 'terraform', 'chef', 'grafana', 'lens'])
+    | length > 0
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: >-
+    devops_to_install
+    | intersect(['docker', 'docker-compose', 'kubectl', 'helm',
+                 'terraform', 'chef', 'grafana', 'lens'])
+    | length > 0
+
+- name: Install Prometheus
+  # Prometheus is in the Debian and Ubuntu archives.
+  when: "'prometheus' in devops_to_install"
+  block:
+    - name: Install the Prometheus package
+      become: true
+      ansible.builtin.apt:
+        name: prometheus
+        state: present
+
+    - name: Start Prometheus and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: prometheus
+        state: started
+        enabled: true
+
+- name: Install Docker
+  when: >-
+    'docker' in devops_to_install or
+    'docker-compose' in devops_to_install
+  block:
+    - name: Download the Docker repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Configure the Docker repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: docker
+        types: [deb]
+        uris: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+        suites: ["{{ ansible_distribution_release }}"]
+        components: [stable]
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/docker.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Docker repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install the Docker engine and command line tools
+      become: true
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+        state: present
+      when: "'docker' in devops_to_install"
+
+    - name: Install the Docker Compose plugin
+      become: true
+      ansible.builtin.apt:
+        name: docker-compose-plugin
+        state: present
+      when: "'docker-compose' in devops_to_install"
+
+    - name: Start Docker and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      when: "'docker' in devops_to_install"
+
+    - name: Add the user to the docker group
+      # Without this every docker command needs sudo.
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+      when: "'docker' in devops_to_install"
+
+- name: Install kubectl
+  when: "'kubectl' in devops_to_install"
+  block:
+    - name: Download the Kubernetes repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_series }}/deb/Release.key"
+        dest: /etc/apt/keyrings/kubernetes.asc
+        mode: '0644'
+
+    - name: Configure the Kubernetes repository
+      # This is a flat repository, so the suite is a bare slash.
+      become: true
+      ansible.builtin.deb822_repository:
+        name: kubernetes
+        types: [deb]
+        uris: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_series }}/deb/"
+        suites: ['/']
+        signed_by: /etc/apt/keyrings/kubernetes.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Kubernetes repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the kubectl installer
+      become: true
+      ansible.builtin.apt:
+        name: kubectl
+        state: present
+
+- name: Install Helm
+  when: "'helm' in devops_to_install"
+  block:
+    - name: Download the Helm repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://baltocdn.com/helm/signing.asc
+        dest: /etc/apt/keyrings/helm.asc
+        mode: '0644'
+
+    - name: Configure the Helm repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: helm
+        types: [deb]
+        uris: https://baltocdn.com/helm/stable/debian/
+        suites: [all]
+        components: [main]
+        signed_by: /etc/apt/keyrings/helm.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Helm repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Helm installer
+      become: true
+      ansible.builtin.apt:
+        name: helm
+        state: present
+
+- name: Install Terraform
+  when: "'terraform' in devops_to_install"
+  block:
+    - name: Download the HashiCorp repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://apt.releases.hashicorp.com/gpg
+        dest: /etc/apt/keyrings/hashicorp.asc
+        mode: '0644'
+
+    - name: Configure the HashiCorp repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: hashicorp
+        types: [deb]
+        uris: https://apt.releases.hashicorp.com
+        suites: ["{{ ansible_distribution_release }}"]
+        components: [main]
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/hashicorp.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the HashiCorp repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Terraform installer
+      become: true
+      ansible.builtin.apt:
+        name: terraform
+        state: present
+
+- name: Install Grafana
+  when: "'grafana' in devops_to_install"
+  block:
+    - name: Download the Grafana repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg.key
+        dest: /etc/apt/keyrings/grafana.asc
+        mode: '0644'
+
+    - name: Configure the Grafana repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: grafana
+        types: [deb]
+        uris: https://apt.grafana.com
+        suites: [stable]
+        components: [main]
+        signed_by: /etc/apt/keyrings/grafana.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Grafana repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Grafana installer
+      become: true
+      ansible.builtin.apt:
+        name: grafana
+        state: present
+
+    - name: Start Grafana and enable it at boot
+      become: true
+      ansible.builtin.service:
+        name: grafana-server
+        state: started
+        enabled: true
+
+- name: Install Chef Workstation
+  when: "'chef' in devops_to_install"
+  block:
+    - name: Download the Chef repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://packages.chef.io/chef.asc
+        dest: /etc/apt/keyrings/chef.asc
+        mode: '0644'
+
+    - name: Configure the Chef repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: chef
+        types: [deb]
+        uris: https://packages.chef.io/repos/apt/stable
+        suites: ["{{ ansible_distribution_release }}"]
+        components: [main]
+        architectures: [amd64]
+        signed_by: /etc/apt/keyrings/chef.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Chef repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Chef Workstation installer
+      become: true
+      ansible.builtin.apt:
+        name: chef-workstation
+        state: present
+
+- name: Install minikube
+  # minikube publishes packages on its releases page, not an apt repository.
+  when: "'minikube' in devops_to_install"
+  block:
+    - name: Look up the latest minikube release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/kubernetes/minikube/releases/latest
+        return_content: true
+      register: minikube_release
+
+    - name: Find the minikube package for this architecture
+      ansible.builtin.set_fact:
+        minikube_package_url: >-
+          {{
+            minikube_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_' ~ minikube_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        minikube_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching minikube package
+      ansible.builtin.assert:
+        that:
+          - minikube_package_url | length > 0
+        fail_msg: >-
+          No minikube package is published for {{ ansible_architecture }}.
+
+    - name: Download the minikube package
+      ansible.builtin.get_url:
+        url: "{{ minikube_package_url }}"
+        dest: /tmp/minikube.deb
+        mode: '0644'
+
+    - name: Run the minikube installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/minikube.deb
+        state: present
+
+- name: Install kind
+  # kind ships a single binary, with no package of any kind.
+  when: "'kind' in devops_to_install"
+  block:
+    - name: Install the kind binary
+      become: true
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/kubernetes-sigs/kind/releases/latest/download/kind-linux-{{
+          'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}
+        dest: /usr/local/bin/kind
+        mode: '0755'
+
+- name: Install Pulumi
+  # Pulumi ships a tarball of binaries, with no apt repository.
+  when: "'pulumi' in devops_to_install"
+  block:
+    - name: Create the local binary directory
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Look up the latest Pulumi release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/pulumi/pulumi/releases/latest
+        return_content: true
+      register: pulumi_release
+
+    - name: Find the Pulumi tarball for this architecture
+      ansible.builtin.set_fact:
+        pulumi_package_url: >-
+          {{
+            pulumi_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', 'linux-' ~ pulumi_arch ~ '\.tar\.gz$')
+            | first | default('')
+          }}
+      vars:
+        pulumi_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'x64' }}"
+
+    - name: Require a matching Pulumi tarball
+      ansible.builtin.assert:
+        that:
+          - pulumi_package_url | length > 0
+        fail_msg: >-
+          No Pulumi tarball is published for {{ ansible_architecture }}.
+
+    - name: Unpack Pulumi into the local binary directory
+      ansible.builtin.unarchive:
+        src: "{{ pulumi_package_url }}"
+        dest: "{{ ansible_user_dir }}/.local/bin"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+        creates: "{{ ansible_user_dir }}/.local/bin/pulumi"
+
+- name: Install Podman
+  # Podman is in the Debian and Ubuntu archives.
+  become: true
+  ansible.builtin.apt:
+    name: podman
+    state: present
+  when: "'podman' in devops_to_install"
+
+- name: Install k9s
+  # k9s publishes packages on its releases page, not an apt repository.
+  when: "'k9s' in devops_to_install"
+  block:
+    - name: Look up the latest k9s release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/derailed/k9s/releases/latest
+        return_content: true
+      register: k9s_release
+
+    - name: Find the k9s package for this architecture
+      ansible.builtin.set_fact:
+        k9s_package_url: >-
+          {{
+            k9s_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_linux_' ~ k9s_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        k9s_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching k9s package
+      ansible.builtin.assert:
+        that:
+          - k9s_package_url | length > 0
+        fail_msg: No k9s package is published for {{ ansible_architecture }}.
+
+    - name: Download the k9s package
+      ansible.builtin.get_url:
+        url: "{{ k9s_package_url }}"
+        dest: /tmp/k9s.deb
+        mode: '0644'
+
+    - name: Run the k9s installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/k9s.deb
+        state: present
+
+- name: Install Terragrunt
+  # Terragrunt ships a single binary with no package of any kind.
+  when: "'terragrunt' in devops_to_install"
+  block:
+    - name: Install the Terragrunt binary
+      become: true
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/gruntwork-io/terragrunt/releases/latest/download/terragrunt_linux_{{
+          'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}
+        dest: /usr/local/bin/terragrunt
+        mode: '0755'
+
+- name: Install Lens
+  # Lens serves its own apt repository, amd64 only.
+  when: "'lens' in devops_to_install"
+  block:
+    - name: Download the Lens repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://downloads.k8slens.dev/keys/gpg
+        dest: /etc/apt/keyrings/lens.asc
+        mode: '0644'
+
+    - name: Configure the Lens repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: lens
+        types: [deb]
+        uris: https://downloads.k8slens.dev/apt/debian
+        suites: [stable]
+        components: [main]
+        architectures: [amd64]
+        signed_by: /etc/apt/keyrings/lens.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Lens repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Lens installer
+      become: true
+      ansible.builtin.apt:
+        name: lens
+        state: present

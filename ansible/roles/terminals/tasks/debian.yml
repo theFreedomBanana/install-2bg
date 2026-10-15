@@ -1,0 +1,113 @@
+- name: Install Alacritty
+  become: true
+  ansible.builtin.apt:
+    name: alacritty
+    state: present
+  when: "'alacritty' in terminals_to_install"
+
+- name: Install Terminator
+  become: true
+  ansible.builtin.apt:
+    name: terminator
+    state: present
+  when: "'terminator' in terminals_to_install"
+
+- name: Install Kitty
+  become: true
+  ansible.builtin.apt:
+    name: kitty
+    state: present
+  when: "'kitty' in terminals_to_install"
+
+- name: Install WezTerm
+  # WezTerm publishes no archive package, so this uses their Gemfury repo.
+  # Both the codename and the component in that repo are literally "*".
+  when: "'wezterm' in terminals_to_install"
+  block:
+    - name: Install prerequisites for the WezTerm repository
+      become: true
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - gpg
+        state: present
+
+    - name: Create APT keyrings directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download the WezTerm repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://apt.fury.io/wez/gpg.key
+        dest: /etc/apt/keyrings/wezterm-fury.asc
+        mode: '0644'
+
+    - name: Configure the WezTerm repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: wezterm
+        types: [deb]
+        uris: https://apt.fury.io/wez/
+        suites: ['*']
+        components: ['*']
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/wezterm-fury.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the WezTerm repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the WezTerm installer
+      become: true
+      ansible.builtin.apt:
+        name: wezterm
+        state: present
+
+- name: Install Ghostty
+  when: "'ghostty' in terminals_to_install"
+  block:
+    - name: Look up the latest Ghostty build for Ubuntu
+      # Ghostty publishes no apt package, so this uses the community builds.
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/mkasberg/ghostty-ubuntu/releases/latest
+        return_content: true
+      register: ghostty_release
+
+    - name: Find the build matching this Ubuntu release and architecture
+      ansible.builtin.set_fact:
+        ghostty_package_url: >-
+          {{
+            ghostty_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_' ~ ghostty_arch ~ '_' ~ ansible_distribution_version ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        ghostty_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching Ghostty build
+      ansible.builtin.assert:
+        that:
+          - ghostty_package_url | length > 0
+        fail_msg: >-
+          No Ghostty build is published for Ubuntu
+          {{ ansible_distribution_version }} on {{ ansible_architecture }}.
+
+    - name: Download the Ghostty package
+      ansible.builtin.get_url:
+        url: "{{ ghostty_package_url }}"
+        dest: /tmp/ghostty.deb
+        mode: '0644'
+
+    - name: Run the Ghostty installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/ghostty.deb
+        state: present

@@ -1,0 +1,25 @@
+# Slack publishes a version pinned download URL with no "latest" redirect.
+# Zoom and Discord both serve a "latest" URL, so they need no version here.
+slack_version: 4.52.178
+
+# Social apps this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+socials_supported:
+  MacOSX:
+    - zoom
+    - discord
+    - slack
+  Ubuntu:
+    - zoom
+    - discord
+    - slack
+  Debian:
+    - zoom
+    - discord
+    - slack
+
+# None of the three publishes an arm64 Linux package.
+socials_amd64_only:
+  - zoom
+  - discord
+  - slack

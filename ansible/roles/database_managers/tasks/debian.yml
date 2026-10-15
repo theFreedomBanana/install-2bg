@@ -1,0 +1,208 @@
+- name: Install DBeaver
+  # DBeaver publishes no apt repository, only packages on its releases page.
+  when: "'dbeaver' in database_managers_to_install"
+  block:
+    - name: Look up the latest DBeaver release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/dbeaver/dbeaver/releases/latest
+        return_content: true
+      register: dbeaver_release
+
+    - name: Find the DBeaver package for this architecture
+      ansible.builtin.set_fact:
+        dbeaver_package_url: >-
+          {{
+            dbeaver_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', 'linux-' ~ dbeaver_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        dbeaver_arch: "{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}"
+
+    - name: Require a matching DBeaver package
+      ansible.builtin.assert:
+        that:
+          - dbeaver_package_url | length > 0
+        fail_msg: >-
+          No DBeaver package is published for {{ ansible_architecture }}.
+
+    - name: Download the DBeaver package
+      ansible.builtin.get_url:
+        url: "{{ dbeaver_package_url }}"
+        dest: /tmp/dbeaver.deb
+        mode: '0644'
+
+    - name: Run the DBeaver installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/dbeaver.deb
+        state: present
+
+- name: Install Beekeeper Studio
+  when: "'beekeeper' in database_managers_to_install"
+  block:
+    - name: Look up the latest Beekeeper Studio release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/beekeeper-studio/beekeeper-studio/releases/latest
+        return_content: true
+      register: beekeeper_release
+
+    - name: Find the Beekeeper Studio package for this architecture
+      ansible.builtin.set_fact:
+        beekeeper_package_url: >-
+          {{
+            beekeeper_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_' ~ beekeeper_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        beekeeper_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching Beekeeper Studio package
+      ansible.builtin.assert:
+        that:
+          - beekeeper_package_url | length > 0
+        fail_msg: >-
+          No Beekeeper Studio package is published for {{ ansible_architecture }}.
+
+    - name: Download the Beekeeper Studio package
+      ansible.builtin.get_url:
+        url: "{{ beekeeper_package_url }}"
+        dest: /tmp/beekeeper-studio.deb
+        mode: '0644'
+
+    - name: Run the Beekeeper Studio installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/beekeeper-studio.deb
+        state: present
+
+- name: Install Redis Insight
+  when: "'redisinsight' in database_managers_to_install"
+  block:
+    - name: Look up the latest Redis Insight release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/redis/RedisInsight/releases/latest
+        return_content: true
+      register: redisinsight_release
+
+    - name: Find the Redis Insight package for this architecture
+      ansible.builtin.set_fact:
+        redisinsight_package_url: >-
+          {{
+            redisinsight_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', 'linux-' ~ redisinsight_arch ~ '\.deb$')
+            | first | default('')
+          }}
+      vars:
+        redisinsight_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+    - name: Require a matching Redis Insight package
+      ansible.builtin.assert:
+        that:
+          - redisinsight_package_url | length > 0
+        fail_msg: >-
+          No Redis Insight package is published for {{ ansible_architecture }}.
+
+    - name: Download the Redis Insight package
+      ansible.builtin.get_url:
+        url: "{{ redisinsight_package_url }}"
+        dest: /tmp/redis-insight.deb
+        mode: '0644'
+
+    - name: Run the Redis Insight installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/redis-insight.deb
+        state: present
+
+- name: Install pgAdmin
+  when: "'pgadmin' in database_managers_to_install"
+  block:
+    - name: Install prerequisites for the pgAdmin repository
+      become: true
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - gpg
+        state: present
+
+    - name: Create APT keyrings directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download the pgAdmin repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://www.pgadmin.org/static/packages_pgadmin_org.pub
+        dest: /etc/apt/keyrings/pgadmin.asc
+        mode: '0644'
+
+    - name: Configure the pgAdmin repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: pgadmin4
+        types: [deb]
+        uris: >-
+          https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/{{
+          ansible_distribution_release }}
+        suites: [pgadmin4]
+        components: [main]
+        architectures: [amd64]
+        signed_by: /etc/apt/keyrings/pgadmin.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the pgAdmin repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the pgAdmin installer
+      become: true
+      ansible.builtin.apt:
+        name: pgadmin4-desktop
+        state: present
+
+- name: Install DbVisualizer
+  # DbVisualizer publishes a version pinned URL with no latest redirect.
+  when: "'dbvis' in database_managers_to_install"
+  block:
+    - name: Download the DbVisualizer package
+      ansible.builtin.get_url:
+        url: >-
+          https://www.dbvis.com/product_download/dbvis-{{ dbvisualizer_version
+          }}/media/dbvis_linux_{{ dbvisualizer_version | replace('.', '_')
+          }}_amd64.deb
+        dest: /tmp/dbvisualizer.deb
+        mode: '0644'
+
+    - name: Run the DbVisualizer installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/dbvisualizer.deb
+        state: present
+
+- name: Install MongoDB Compass
+  # MongoDB Compass publishes a version pinned URL with no latest redirect.
+  when: "'compass' in database_managers_to_install"
+  block:
+    - name: Download the MongoDB Compass package
+      ansible.builtin.get_url:
+        url: >-
+          https://downloads.mongodb.com/compass/mongodb-compass_{{
+          mongodb_compass_version }}_amd64.deb
+        dest: /tmp/mongodb-compass.deb
+        mode: '0644'
+
+    - name: Run the MongoDB Compass installer
+      become: true
+      ansible.builtin.apt:
+        deb: /tmp/mongodb-compass.deb
+        state: present

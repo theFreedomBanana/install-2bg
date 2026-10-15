@@ -1,0 +1,133 @@
+- name: Install the Git tools that the archives carry
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - git
+    - git-lfs
+  when: item in git_tools_to_install
+
+- name: Install the GitHub CLI
+  # gh is in the archives, but only from Debian bookworm and Ubuntu jammy
+  # onwards and always behind. GitHub's own repository is current.
+  when: "'gh' in git_tools_to_install"
+  block:
+    - name: Install prerequisites for the GitHub repository
+      become: true
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - gpg
+        state: present
+
+    - name: Create APT keyrings directory
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download the GitHub CLI repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+        dest: /etc/apt/keyrings/githubcli.gpg
+        mode: '0644'
+
+    - name: Configure the GitHub CLI repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: github-cli
+        types: [deb]
+        uris: https://cli.github.com/packages
+        suites: [stable]
+        components: [main]
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/githubcli.gpg
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the GitHub CLI repository
+      # deb822_repository never updates the cache itself.
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the GitHub CLI installer
+      become: true
+      ansible.builtin.apt:
+        name: gh
+        state: present
+
+- name: Install lazygit
+  # lazygit only reaches the archives in Debian trixie and Ubuntu questing,
+  # so this uses the project's own tarball instead.
+  when: "'lazygit' in git_tools_to_install"
+  block:
+    - name: Create the local binary directory
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Look up the latest lazygit release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
+        return_content: true
+      register: lazygit_release
+
+    - name: Unpack lazygit into the local binary directory
+      # The archive holds lazygit at its root, beside LICENSE and README.
+      ansible.builtin.unarchive:
+        src: >-
+          {{
+            lazygit_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '_linux_' ~ lazygit_arch ~ '\.tar\.gz$')
+            | first
+          }}
+        dest: "{{ ansible_user_dir }}/.local/bin"
+        remote_src: true
+        extra_opts:
+          - lazygit
+        creates: "{{ ansible_user_dir }}/.local/bin/lazygit"
+      vars:
+        lazygit_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'x86_64' }}"
+
+- name: Install git-delta
+  # git-delta only reaches the archives in Debian trixie and Ubuntu noble,
+  # so this uses the project's own tarball instead.
+  when: "'git-delta' in git_tools_to_install"
+  block:
+    - name: Create the local binary directory
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Look up the latest git-delta release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/dandavison/delta/releases/latest
+        return_content: true
+      register: delta_release
+
+    - name: Unpack git-delta into the local binary directory
+      # The archive nests delta one directory down, so one level is stripped.
+      ansible.builtin.unarchive:
+        src: >-
+          {{
+            delta_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '-' ~ delta_arch ~ '-unknown-linux-gnu\.tar\.gz$')
+            | first
+          }}
+        dest: "{{ ansible_user_dir }}/.local/bin"
+        remote_src: true
+        extra_opts:
+          - --strip-components=1
+          - --wildcards
+          - '*/delta'
+        creates: "{{ ansible_user_dir }}/.local/bin/delta"
+      vars:
+        delta_arch: "{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}"

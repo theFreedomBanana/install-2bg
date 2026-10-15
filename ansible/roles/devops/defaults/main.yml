@@ -1,0 +1,65 @@
+# The Kubernetes apt repository is split by minor version, so the series has
+# to be named. Bump this to track a newer Kubernetes.
+kubernetes_series: v1.34
+
+# DevOps tools this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+devops_supported:
+  MacOSX:
+    - docker
+    - docker-compose
+    - podman
+    - kubectl
+    - helm
+    - minikube
+    - kind
+    - k9s
+    - lens
+    - terraform
+    - pulumi
+    - terragrunt
+    - chef
+    - prometheus
+    - grafana
+  Ubuntu:
+    - docker
+    - docker-compose
+    - podman
+    - kubectl
+    - helm
+    - minikube
+    - kind
+    - k9s
+    - lens
+    - terraform
+    - pulumi
+    - terragrunt
+    - chef
+    - prometheus
+    - grafana
+  Debian:
+    - docker
+    - docker-compose
+    - podman
+    - kubectl
+    - helm
+    - minikube
+    - kind
+    - k9s
+    - lens
+    - terraform
+    - pulumi
+    - terragrunt
+    - chef
+    - prometheus
+    - grafana
+
+# Chef Workstation publishes amd64 packages only.
+devops_amd64_only:
+  - chef
+  - lens
+
+# These need a container runtime to do anything useful.
+devops_needs_container_runtime:
+  - minikube
+  - kind

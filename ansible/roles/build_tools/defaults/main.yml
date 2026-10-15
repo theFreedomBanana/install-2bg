@@ -1,0 +1,75 @@
+# Compilers are not versioned runtimes, so these come from the system package
+# manager rather than from mise.
+#
+# macOS already ships clang, clang++ and make in the Xcode command line
+# tools, which Homebrew's own installer pulls in. So the C and C++ entry has
+# nothing to install there, only something to verify.
+build_tools_packages:
+  cxx:
+    Debian:
+      - build-essential
+    MacOSX: []
+  fortran:
+    Debian:
+      - gfortran
+    # Homebrew's gcc formula is built with Fortran enabled and symlinks
+    # gfortran, so there is no separate formula.
+    MacOSX:
+      - gcc
+  cmake:
+    Debian:
+      - cmake
+    MacOSX:
+      - cmake
+  ninja:
+    Debian:
+      - ninja-build
+    MacOSX:
+      - ninja
+  ccache:
+    Debian:
+      - ccache
+    MacOSX:
+      - ccache
+  autotools:
+    Debian:
+      - autoconf
+      - automake
+      - libtool
+    MacOSX:
+      - autoconf
+      - automake
+      - libtool
+  pkgconf:
+    Debian:
+      - pkg-config
+    MacOSX:
+      - pkgconf
+  gdb:
+    Debian:
+      - gdb
+    # GDB is awkward on Apple Silicon and needs code signing to work at all.
+    # lldb comes with the Xcode command line tools and is the usable option.
+    MacOSX: []
+
+# Build tools this role can install, per platform. GDB is left out on macOS
+# because lldb already covers it.
+build_tools_supported:
+  MacOSX:
+    - cxx
+    - fortran
+    - cmake
+    - ninja
+    - ccache
+    - autotools
+    - pkgconf
+  Ubuntu: &all_build_tools
+    - cxx
+    - fortran
+    - cmake
+    - ninja
+    - ccache
+    - autotools
+    - pkgconf
+    - gdb
+  Debian: *all_build_tools

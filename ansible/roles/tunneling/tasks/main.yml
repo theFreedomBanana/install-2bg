@@ -1,0 +1,27 @@
+- name: Work out which tunneling tools this machine can install
+  ansible.builtin.set_fact:
+    tunneling_installable: >-
+      {{
+        tunneling_supported[ansible_distribution]
+        | default(tunneling_supported[ansible_os_family])
+        | default([])
+      }}
+
+- name: Work out which tunneling tools to install
+  ansible.builtin.set_fact:
+    tunneling_to_install: "{{ selected_tunneling | intersect(tunneling_installable) }}"
+
+- name: Report tunneling tools that this machine cannot install
+  ansible.builtin.debug:
+    msg: >-
+      Skipped, no install available on {{ ansible_distribution }}:
+      {{ selected_tunneling | difference(tunneling_installable) | join(', ') }}
+  when: selected_tunneling | difference(tunneling_installable) | length > 0
+
+- name: Install tunneling tools on Ubuntu or Debian
+  ansible.builtin.import_tasks: debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Install tunneling tools on macOS
+  ansible.builtin.import_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

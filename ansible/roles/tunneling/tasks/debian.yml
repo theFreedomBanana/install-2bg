@@ -1,0 +1,86 @@
+- name: Install prerequisites for the tunneling repositories
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+    state: present
+  when: tunneling_to_install | length > 0
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: tunneling_to_install | length > 0
+
+- name: Install ngrok
+  when: "'ngrok' in tunneling_to_install"
+  block:
+    - name: Download the ngrok repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://ngrok-agent.s3.amazonaws.com/ngrok.asc
+        dest: /etc/apt/keyrings/ngrok.asc
+        mode: '0644'
+
+    - name: Configure the ngrok repository
+      # ngrok serves one suite named buster for every Debian release.
+      become: true
+      ansible.builtin.deb822_repository:
+        name: ngrok
+        types: [deb]
+        uris: https://ngrok-agent.s3.amazonaws.com
+        suites: [buster]
+        components: [main]
+        architectures: [amd64, arm64, armhf]
+        signed_by: /etc/apt/keyrings/ngrok.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the ngrok repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the ngrok installer
+      become: true
+      ansible.builtin.apt:
+        name: ngrok
+        state: present
+
+- name: Install zrok
+  when: "'zrok' in tunneling_to_install"
+  block:
+    - name: Download the OpenZiti repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://get.openziti.io/tun/package-repos.gpg
+        dest: /etc/apt/keyrings/openziti.asc
+        mode: '0644'
+
+    - name: Configure the OpenZiti repository
+      # OpenZiti serves one suite named debian for every Debian release.
+      become: true
+      ansible.builtin.deb822_repository:
+        name: openziti
+        types: [deb]
+        uris: https://packages.openziti.org/zitipax-openziti-deb-stable
+        suites: [debian]
+        components: [main]
+        architectures: [amd64, arm64, armhf]
+        signed_by: /etc/apt/keyrings/openziti.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the OpenZiti repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the zrok installer
+      become: true
+      ansible.builtin.apt:
+        name: zrok
+        state: present

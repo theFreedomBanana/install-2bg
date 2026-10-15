@@ -1,0 +1,9 @@
+- name: Install the note taking apps
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_prefix }}/bin"
+  loop:
+    - notion
+    - obsidian
+  when: item in notes_to_install

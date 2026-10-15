@@ -1,0 +1,14 @@
+# Tunneling tools this role can install, per platform.
+# The key is matched against ansible_distribution first, then ansible_os_family.
+# localtunnel ships only as an npm package, so it is macOS only here.
+tunneling_supported:
+  MacOSX:
+    - ngrok
+    - localtunnel
+    - zrok
+  Ubuntu:
+    - ngrok
+    - zrok
+  Debian:
+    - ngrok
+    - zrok

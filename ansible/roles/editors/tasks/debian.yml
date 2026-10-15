@@ -1,0 +1,230 @@
+- name: Install prerequisites for the editor repositories
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+    state: present
+  when: >-
+    editors_to_install | intersect(['vscode', 'sublimetext']) | length > 0
+
+- name: Create APT keyrings directory
+  become: true
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  when: >-
+    editors_to_install | intersect(['vscode', 'sublimetext']) | length > 0
+
+- name: Install the editors that the archives carry
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item.package }}"
+    state: present
+  loop:
+    - key: neovim
+      package: neovim
+    - key: emacs
+      package: emacs
+  loop_control:
+    label: "{{ item.package }}"
+  when: item.key in editors_to_install
+
+- name: Install Visual Studio Code
+  when: "'vscode' in editors_to_install"
+  block:
+    - name: Download the Microsoft repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        dest: /etc/apt/keyrings/microsoft.asc
+        mode: '0644'
+
+    - name: Configure the Visual Studio Code repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: vscode
+        types: [deb]
+        uris: https://packages.microsoft.com/repos/code
+        suites: [stable]
+        components: [main]
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/microsoft.asc
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Visual Studio Code repository
+      # deb822_repository never updates the cache itself.
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Visual Studio Code installer
+      become: true
+      ansible.builtin.apt:
+        name: code
+        state: present
+
+- name: Install Sublime Text
+  when: "'sublimetext' in editors_to_install"
+  block:
+    - name: Download the Sublime Text repository signing key
+      become: true
+      ansible.builtin.get_url:
+        url: https://download.sublimetext.com/sublimehq-pub.gpg
+        dest: /etc/apt/keyrings/sublimehq.gpg
+        mode: '0644'
+
+    - name: Configure the Sublime Text repository
+      # This is a flat repository: the Packages index sits beside InRelease
+      # rather than under a dists directory, so the suite is a bare slash.
+      become: true
+      ansible.builtin.deb822_repository:
+        name: sublime-text
+        types: [deb]
+        uris: https://download.sublimetext.com/apt/stable/
+        suites: ['/']
+        architectures: [amd64, arm64]
+        signed_by: /etc/apt/keyrings/sublimehq.gpg
+        state: present
+        enabled: true
+
+    - name: Refresh the apt cache for the Sublime Text repository
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Run the Sublime Text installer
+      become: true
+      ansible.builtin.apt:
+        name: sublime-text
+        state: present
+
+- name: Install Zed
+  when: "'zed' in editors_to_install"
+  block:
+    - name: Download the Zed installer
+      ansible.builtin.get_url:
+        url: https://zed.dev/install.sh
+        dest: /tmp/install-zed.sh
+        mode: '0755'
+
+    - name: Run the Zed installer
+      # The installer places Zed under the user home, so it must not run as root.
+      become: false
+      ansible.builtin.command:
+        cmd: /bin/sh /tmp/install-zed.sh
+        creates: "{{ ansible_user_dir }}/.local/bin/zed"
+
+- name: Install Cursor
+  when: "'cursor' in editors_to_install"
+  block:
+    - name: Install the AppImage runtime dependency
+      become: true
+      ansible.builtin.apt:
+        name: "{{ appimage_fuse_package }}"
+        state: present
+
+    - name: Create the local application directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ ansible_user_dir }}/.local/bin"
+        - "{{ ansible_user_dir }}/.local/share/applications"
+
+    - name: Look up the current Cursor download URL
+      ansible.builtin.uri:
+        url: >-
+          https://www.cursor.com/api/download?platform=linux-x64&releaseTrack=stable
+        return_content: true
+      register: cursor_release
+
+    - name: Download the Cursor AppImage
+      ansible.builtin.get_url:
+        url: "{{ cursor_release.json.downloadUrl }}"
+        dest: "{{ ansible_user_dir }}/.local/bin/cursor.AppImage"
+        mode: '0755'
+
+    - name: Add a desktop entry for Cursor
+      ansible.builtin.copy:
+        dest: "{{ ansible_user_dir }}/.local/share/applications/cursor.desktop"
+        mode: '0644'
+        content: |
+          [Desktop Entry]
+          Name=Cursor
+          Comment=AI-first code editor
+          Exec={{ ansible_user_dir }}/.local/bin/cursor.AppImage --no-sandbox %F
+          Icon=cursor
+          Type=Application
+          Categories=Development;IDE;TextEditor;
+          StartupWMClass=Cursor
+
+- name: Install Codex
+  # Codex publishes no apt package, only statically linked tarballs. Each
+  # holds a single binary named after its target, so it is unpacked to a
+  # temporary directory and then copied under its plain name.
+  when: "'codex' in editors_to_install"
+  block:
+    - name: Create the local binary directory
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.local/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Look up the latest Codex release
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/openai/codex/releases/latest
+        return_content: true
+      register: codex_release
+
+    - name: Find the Codex archive for this architecture
+      ansible.builtin.set_fact:
+        codex_archive_url: >-
+          {{
+            codex_release.json.assets
+            | map(attribute='browser_download_url')
+            | select('search', '/codex-' ~ codex_target ~ '\.tar\.gz$')
+            | first | default('')
+          }}
+      vars:
+        codex_target: >-
+          {{
+            'aarch64-unknown-linux-musl'
+            if ansible_architecture == 'aarch64'
+            else 'x86_64-unknown-linux-musl'
+          }}
+
+    - name: Require a matching Codex archive
+      ansible.builtin.assert:
+        that:
+          - codex_archive_url | length > 0
+        fail_msg: >-
+          No Codex archive is published for {{ ansible_architecture }}.
+
+    - name: Unpack Codex to a temporary directory
+      ansible.builtin.unarchive:
+        src: "{{ codex_archive_url }}"
+        dest: /tmp
+        remote_src: true
+        creates: "/tmp/{{ codex_archive_url | basename | replace('.tar.gz', '') }}"
+
+    - name: Install the Codex binary
+      ansible.builtin.copy:
+        src: "/tmp/{{ codex_archive_url | basename | replace('.tar.gz', '') }}"
+        dest: "{{ ansible_user_dir }}/.local/bin/codex"
+        mode: '0755'
+        remote_src: true
+
+- name: Install PyCharm Community using Snap
+  # JetBrains publishes no apt repository. The snap is their supported Linux
+  # package, which is why this is Ubuntu only. PyCharm needs classic
+  # confinement to reach compilers and interpreters outside the sandbox.
+  community.general.snap:
+    name: pycharm-community
+    classic: true
+    state: present
+  become: true
+  when: "'pycharm' in editors_to_install"
