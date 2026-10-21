@@ -3,11 +3,11 @@
 from scripts.prompt import choose
 
 CHOICES = [
-    {"name": "Alacritty", "value": "alacritty"},
+    {"name": "Alacritty (Linux only)", "value": "alacritty"},
     {"name": "Ghostty", "value": "ghostty"},
-    {"name": "iTerm2", "value": "iterm2"},
+    {"name": "iTerm2 (Mac only)", "value": "iterm2"},
     {"name": "Kitty", "value": "kitty"},
-    {"name": "Terminator", "value": "terminator"},
+    {"name": "Terminator (Linux only)", "value": "terminator"},
     {"name": "WezTerm", "value": "wezterm"},
 ]
 
