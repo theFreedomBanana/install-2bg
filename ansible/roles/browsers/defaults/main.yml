@@ -6,7 +6,6 @@ browsers_supported:
     - firefox
     - chrome
     - edge
-    - chromium
     - brave
     - opera
     - zen

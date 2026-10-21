@@ -10,8 +10,6 @@
       cask: google-chrome
     - key: edge
       cask: microsoft-edge
-    - key: chromium
-      cask: chromium
     - key: brave
       cask: brave-browser
     - key: opera

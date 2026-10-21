@@ -4,7 +4,7 @@ from scripts.prompt import choose
 
 CHOICES = [
     {"name": "Brave", "value": "brave"},
-    {"name": "Chromium", "value": "chromium"},
+    {"name": "Chromium (Linux only)", "value": "chromium"},
     {"name": "Comet (Perplexity)", "value": "comet"},
     {"name": "Firefox", "value": "firefox"},
     {"name": "Google Chrome", "value": "chrome"},
