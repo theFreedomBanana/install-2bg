@@ -3,7 +3,7 @@
 from scripts.prompt import choose
 
 CHOICES = [
-    {"name": "Mullvad", "value": "mullvad"},
+    {"name": "MullvadVPN (Linux only)", "value": "mullvad"},
     {"name": "NordVPN", "value": "nordvpn"},
     {"name": "Proton VPN", "value": "protonvpn"},
     {"name": "WireGuard (tools only)", "value": "wireguard"},

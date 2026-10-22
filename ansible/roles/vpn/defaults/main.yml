@@ -4,7 +4,6 @@
 vpn_supported:
   MacOSX: &all_vpn
     - nordvpn
-    - mullvad
     - protonvpn
     - wireguard
   Ubuntu: *all_vpn

@@ -6,8 +6,6 @@
   loop:
     - key: nordvpn
       cask: nordvpn
-    - key: mullvad
-      cask: mullvadvpn
     - key: protonvpn
       cask: protonvpn
   loop_control:
