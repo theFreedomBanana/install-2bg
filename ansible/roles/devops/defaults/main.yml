@@ -18,7 +18,6 @@ devops_supported:
     - terraform
     - pulumi
     - terragrunt
-    - chef
     - prometheus
     - grafana
   Ubuntu:

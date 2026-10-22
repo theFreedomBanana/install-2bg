@@ -58,13 +58,6 @@
     path: "{{ homebrew_prefix }}/bin"
   when: "'lens' in devops_to_install"
 
-- name: Install Chef Workstation
-  community.general.homebrew_cask:
-    name: chef-workstation
-    state: present
-    path: "{{ homebrew_prefix }}/bin"
-  when: "'chef' in devops_to_install"
-
 # SQLite aside, the pattern matches the databases role: only long running
 # services are registered, and the command is safe to repeat.
 - name: Start the monitoring services and register them to run at login

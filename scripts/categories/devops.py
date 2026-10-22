@@ -3,7 +3,7 @@
 from scripts.prompt import choose
 
 CHOICES = [
-    {"name": "Chef Workstation", "value": "chef"},
+    {"name": "Chef Workstation (Linux only)", "value": "chef"},
     {"name": "Docker (CLI, with Colima on macOS)", "value": "docker"},
     {"name": "Docker Compose", "value": "docker-compose"},
     {"name": "Grafana", "value": "grafana"},
