@@ -5,7 +5,7 @@ from scripts.prompt import choose
 CHOICES = [
     {"name": "ss (socket statistics)", "value": "ss"},
     {"name": "nmap", "value": "nmap"},
-    {"name": "Wireshark", "value": "wireshark"},
+    {"name": "Wireshark (Linux only)", "value": "wireshark"},
 ]
 
 

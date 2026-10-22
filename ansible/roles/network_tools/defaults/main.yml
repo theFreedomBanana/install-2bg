@@ -2,7 +2,6 @@
 # though "ss" comes from a different package on each.
 network_tools_supported:
   MacOSX: &all_network_tools
-    - wireshark
     - nmap
     - ss
   Ubuntu: *all_network_tools

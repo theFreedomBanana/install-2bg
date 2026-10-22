@@ -1,11 +1,3 @@
-- name: Install Wireshark
-  # The cask is the graphical analyser, which brings tshark with it.
-  community.general.homebrew_cask:
-    name: wireshark
-    state: present
-    path: "{{ homebrew_prefix }}/bin"
-  when: "'wireshark' in network_tools_to_install"
-
 - name: Install the command line network tools
   community.general.homebrew:
     name: "{{ item.formula }}"
