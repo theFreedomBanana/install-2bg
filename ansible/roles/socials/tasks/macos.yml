@@ -4,8 +4,6 @@
     state: present
     path: "{{ homebrew_prefix }}/bin"
   loop:
-    - key: zoom
-      cask: zoom
     - key: discord
       cask: discord
     - key: slack

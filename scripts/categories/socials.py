@@ -5,7 +5,7 @@ from scripts.prompt import choose
 CHOICES = [
     {"name": "Discord", "value": "discord"},
     {"name": "Slack", "value": "slack"},
-    {"name": "Zoom", "value": "zoom"},
+    {"name": "Zoom (Linux only)", "value": "zoom"},
 ]
 
 

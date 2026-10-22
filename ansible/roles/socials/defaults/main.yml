@@ -6,7 +6,6 @@ slack_version: 4.52.178
 # The key is matched against ansible_distribution first, then ansible_os_family.
 socials_supported:
   MacOSX:
-    - zoom
     - discord
     - slack
   Ubuntu:
