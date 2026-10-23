@@ -26,4 +26,4 @@ vpn_repositories:
     key_url: https://repo.protonvpn.com/debian/public_key.asc
     uris: https://repo.protonvpn.com/debian
     suite: stable
-    package: protonvpn-gui
+    package: proton-vpn-gnome-desktop
