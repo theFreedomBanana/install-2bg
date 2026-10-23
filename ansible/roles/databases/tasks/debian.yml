@@ -136,6 +136,9 @@
         - question: couchdb/bindaddress
           vtype: string
           value: 127.0.0.1
+        - question: couchdb/cookie
+          vtype: string
+          value: "{{ couchdb_cookie }}"
         - question: couchdb/adminpass
           vtype: password
           value: "{{ couchdb_admin_password }}"

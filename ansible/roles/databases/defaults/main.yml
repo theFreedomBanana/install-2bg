@@ -7,6 +7,12 @@ mongodb_version: '8.0'
 #   ansible-playbook playbook.yml -e couchdb_admin_password=secret
 couchdb_admin_password: ''
 
+# CouchDB's Debian package also asks for an Erlang cookie, a shared secret
+# between nodes. Its installer rejects an empty value and "monster", and
+# fails without one. Each run makes a new random value; pass a fixed one with
+#   ansible-playbook playbook.yml -e couchdb_cookie=secret
+couchdb_cookie: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+
 # MongoDB publishes apt packages only for these releases.
 mongodb_supported_releases:
   Ubuntu:
