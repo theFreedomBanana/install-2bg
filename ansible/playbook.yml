@@ -85,38 +85,38 @@
       - zoom
       - discord
       - slack
-    available_languages:
-      - node
-      - bun
-      - deno
-      - python
-      - go
-      - rust
-      - java
-      - kotlin
-      - scala
-      - clojure
-      - groovy
-      - ruby
-      - erlang
-      - elixir
-      - dotnet
-      - swift
-      - zig
-      - crystal
-      - dart
-      - julia
-      - lua
-      - perl
-    available_build_tools:
-      - cxx
-      - fortran
-      - cmake
-      - ninja
-      - ccache
-      - autotools
-      - pkgconf
-      - gdb
+    # available_languages:
+    #   - node
+    #   - bun
+    #   - deno
+    #   - python
+    #   - go
+    #   - rust
+    #   - java
+    #   - kotlin
+    #   - scala
+    #   - clojure
+    #   - groovy
+    #   - ruby
+    #   - erlang
+    #   - elixir
+    #   - dotnet
+    #   - swift
+    #   - zig
+    #   - crystal
+    #   - dart
+    #   - julia
+    #   - lua
+    #   - perl
+    # available_build_tools:
+    #   - cxx
+    #   - fortran
+    #   - cmake
+    #   - ninja
+    #   - ccache
+    #   - autotools
+    #   - pkgconf
+    #   - gdb
     available_api_clients:
       - postman
       - insomnia
@@ -290,16 +290,16 @@
           The login shell must be one of the shells being installed,
           or empty to leave it unchanged.
 
-    - name: Validate language runtime selections
-      ansible.builtin.assert:
-        that:
-          - selected_languages is defined
-          - selected_languages is sequence
-          - selected_languages is not string
-          - selected_languages | difference(available_languages) | length == 0
-        fail_msg: >-
-          Unknown language runtime requested.
-          Available: {{ available_languages | join(', ') }}.
+    # - name: Validate language runtime selections
+    #   ansible.builtin.assert:
+    #     that:
+    #       - selected_languages is defined
+    #       - selected_languages is sequence
+    #       - selected_languages is not string
+    #       - selected_languages | difference(available_languages) | length == 0
+    #     fail_msg: >-
+    #       Unknown language runtime requested.
+    #       Available: {{ available_languages | join(', ') }}.
 
     - name: Validate network tool selections
       ansible.builtin.assert:
@@ -393,38 +393,38 @@
           Unknown API client requested.
           Available: {{ available_api_clients | join(', ') }}.
 
-    - name: Validate build tool selections
-      ansible.builtin.assert:
-        that:
-          - selected_build_tools is defined
-          - selected_build_tools is sequence
-          - selected_build_tools is not string
-          - >-
-            selected_build_tools | difference(available_build_tools)
-            | length == 0
-        fail_msg: >-
-          Unknown build tool requested.
-          Available: {{ available_build_tools | join(', ') }}.
+    # - name: Validate build tool selections
+    #   ansible.builtin.assert:
+    #     that:
+    #       - selected_build_tools is defined
+    #       - selected_build_tools is sequence
+    #       - selected_build_tools is not string
+    #       - >-
+    #         selected_build_tools | difference(available_build_tools)
+    #         | length == 0
+    #     fail_msg: >-
+    #       Unknown build tool requested.
+    #       Available: {{ available_build_tools | join(', ') }}.
 
-    - name: Require Java for the runtimes that need a virtual machine
-      ansible.builtin.assert:
-        that:
-          - >-
-            selected_languages
-            | intersect(['kotlin', 'scala', 'clojure', 'groovy'])
-            | length == 0 or 'java' in selected_languages
-        fail_msg: >-
-          Kotlin, Scala, Clojure and Groovy all run on the Java
-          virtual machine. Select Java as well, or drop them.
+    # - name: Require Java for the runtimes that need a virtual machine
+    #   ansible.builtin.assert:
+    #     that:
+    #       - >-
+    #         selected_languages
+    #         | intersect(['kotlin', 'scala', 'clojure', 'groovy'])
+    #         | length == 0 or 'java' in selected_languages
+    #     fail_msg: >-
+    #       Kotlin, Scala, Clojure and Groovy all run on the Java
+    #       virtual machine. Select Java as well, or drop them.
 
-    - name: Require Erlang when Elixir is selected
-      # Elixir runs on the Erlang virtual machine, so mise needs an OTP
-      # release present before it can install or run Elixir.
-      ansible.builtin.assert:
-        that:
-          - "'elixir' not in selected_languages or 'erlang' in selected_languages"
-        fail_msg: >-
-          Elixir needs Erlang/OTP. Select Erlang as well, or drop Elixir.
+    # - name: Require Erlang when Elixir is selected
+    #   # Elixir runs on the Erlang virtual machine, so mise needs an OTP
+    #   # release present before it can install or run Elixir.
+    #   ansible.builtin.assert:
+    #     that:
+    #       - "'elixir' not in selected_languages or 'erlang' in selected_languages"
+    #     fail_msg: >-
+    #       Elixir needs Erlang/OTP. Select Erlang as well, or drop Elixir.
 
     - name: Validate shell selections
       ansible.builtin.assert:
@@ -468,8 +468,8 @@
           - "DevOps tools:         {{ selected_devops | join(', ') if selected_devops | length > 0 else 'none' }}"
           - "Tunneling tools:      {{ selected_tunneling | join(', ') if selected_tunneling | length > 0 else 'none' }}"
           - "Social apps:          {{ selected_socials | join(', ') if selected_socials | length > 0 else 'none' }}"
-          - "Language runtimes:    {{ selected_languages | join(', ') if selected_languages | length > 0 else 'none' }}"
-          - "Build tools:          {{ selected_build_tools | join(', ') if selected_build_tools | length > 0 else 'none' }}"
+          # - "Language runtimes:    {{ selected_languages | join(', ') if selected_languages | length > 0 else 'none' }}"
+          # - "Build tools:          {{ selected_build_tools | join(', ') if selected_build_tools | length > 0 else 'none' }}"
           - "API clients:          {{ selected_api_clients | join(', ') if selected_api_clients | length > 0 else 'none' }}"
           - "VPN clients:          {{ selected_vpn | join(', ') if selected_vpn | length > 0 else 'none' }}"
           - "Note taking apps:     {{ selected_notes | join(', ') if selected_notes | length > 0 else 'none' }}"
@@ -493,8 +493,8 @@
         - selected_devops | length == 0
         - selected_tunneling | length == 0
         - selected_socials | length == 0
-        - selected_languages | length == 0
-        - selected_build_tools | length == 0
+        # - selected_languages | length == 0
+        # - selected_build_tools | length == 0
         - selected_api_clients | length == 0
         - selected_vpn | length == 0
         - selected_notes | length == 0
@@ -513,6 +513,17 @@
     - name: Stop unless the installation was confirmed
       ansible.builtin.meta: end_play
       when: install_confirmation.user_input | default('no') | lower != 'yes'
+
+    - name: Install the Python library for apt repository files
+      # deb822_repository needs python3-debian, and minimal installs of
+      # Debian and Ubuntu do not ship it.
+      become: true
+      ansible.builtin.apt:
+        name: python3-debian
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
 
     - name: Install selected browsers
       ansible.builtin.import_role:
@@ -599,15 +610,15 @@
         name: api_clients
       when: selected_api_clients | length > 0
 
-    - name: Install selected build tools
-      ansible.builtin.import_role:
-        name: build_tools
-      when: selected_build_tools | length > 0
+    # - name: Install selected build tools
+    #   ansible.builtin.import_role:
+    #     name: build_tools
+    #   when: selected_build_tools | length > 0
 
-    - name: Install selected language runtimes
-      ansible.builtin.import_role:
-        name: languages
-      when: selected_languages | length > 0
+    # - name: Install selected language runtimes
+    #   ansible.builtin.import_role:
+    #     name: languages
+    #   when: selected_languages | length > 0
 
     - name: Configure the shells
       ansible.builtin.import_role:

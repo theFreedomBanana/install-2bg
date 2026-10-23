@@ -5,14 +5,14 @@ import sys
 
 from scripts.categories.api_clients import select_api_clients
 from scripts.categories.browsers import select_browsers
-from scripts.categories.build_tools import select_build_tools
+# from scripts.categories.build_tools import select_build_tools
 from scripts.categories.database_managers import select_database_managers
 from scripts.categories.databases import select_databases
 from scripts.categories.devops import select_devops
 from scripts.categories.cli_tools import select_cli_tools
 from scripts.categories.editors import select_editors
 from scripts.categories.git_tools import select_git_tools
-from scripts.categories.languages import select_languages
+# from scripts.categories.languages import select_languages
 from scripts.categories.media import select_media
 from scripts.categories.network_tools import select_network_tools
 from scripts.categories.notes import select_notes
@@ -51,8 +51,8 @@ def main():
         servers = select_servers()
         cli_tools = select_cli_tools()
         network_tools = select_network_tools()
-        languages = select_languages()
-        build_tools = select_build_tools()
+        # languages = select_languages()
+        # build_tools = select_build_tools()
         api_clients = select_api_clients()
         shells = select_shells()
 
@@ -72,8 +72,8 @@ def main():
             "selected_servers": servers,
             "selected_cli_tools": cli_tools,
             "selected_network_tools": network_tools,
-            "selected_languages": languages,
-            "selected_build_tools": build_tools,
+            # "selected_languages": languages,
+            # "selected_build_tools": build_tools,
             "selected_api_clients": api_clients,
             "selected_shells": shells,
             "selected_shell_plugins": select_shell_plugins(shells),
