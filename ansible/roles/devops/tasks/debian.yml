@@ -144,7 +144,7 @@
     - name: Download the Helm repository signing key
       become: true
       ansible.builtin.get_url:
-        url: https://baltocdn.com/helm/signing.asc
+        url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
         dest: /etc/apt/keyrings/helm.asc
         mode: '0644'
 
@@ -153,8 +153,8 @@
       ansible.builtin.deb822_repository:
         name: helm
         types: [deb]
-        uris: https://baltocdn.com/helm/stable/debian/
-        suites: [all]
+        uris: https://packages.buildkite.com/helm-linux/helm-debian/any/
+        suites: [any]
         components: [main]
         signed_by: /etc/apt/keyrings/helm.asc
         state: present
