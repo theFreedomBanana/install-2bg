@@ -20,6 +20,15 @@
                and ansible_distribution_major_version is version('13', '>='))
         else 'libfuse2'
       }}
+    alsa_package: >-
+      {{
+        'libasound2t64'
+        if (ansible_distribution == 'Ubuntu'
+            and ansible_distribution_major_version is version('24', '>='))
+           or (ansible_distribution == 'Debian'
+               and ansible_distribution_major_version is version('13', '>='))
+        else 'libasound2'
+      }}
     available_browsers:
       - firefox
       - chrome

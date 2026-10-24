@@ -49,6 +49,12 @@
         dest: /tmp/bruno.deb
         mode: '0644'
 
+    - name: Install the sound library Bruno depends on
+      become: true
+      ansible.builtin.apt:
+        name: "{{ alsa_package }}"
+        state: present
+
     - name: Run the Bruno installer
       become: true
       ansible.builtin.apt:
