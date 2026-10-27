@@ -5,7 +5,7 @@
 
   vars:
     # Apple Silicon installs Homebrew in /opt/homebrew, Intel in /usr/local.
-    homebrew_prefix: "{{ '/opt/homebrew' if ansible_architecture == 'arm64' else '/usr/local' }}"
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_os_family == 'Darwin' and ansible_architecture == 'arm64' else '/usr/local' }}"
     # Homebrew no longer ships an unversioned postgresql formula. The
     # databases role installs it, and shell_config puts its bin on the PATH.
     postgresql_version: 18
